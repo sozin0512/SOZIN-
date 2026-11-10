@@ -102,6 +102,40 @@ input[type=range]{width:100%;accent-color:var(--press)}
 .note{font-size:12px;color:var(--muted)}
 .scen{display:flex;flex-wrap:wrap;gap:6px}
 
+/* ---- valve block cutaway ---- */
+.vbwrap{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:14px;min-height:0}
+@media (max-width:980px){.vbwrap{grid-template-columns:1fr}}
+.vbcell{min-width:0;min-height:0;display:flex}
+#vbSvg{width:100%;height:auto;display:block}
+.vbc{cursor:pointer}
+.vbc .fr{fill:transparent;stroke:transparent;stroke-width:2.5}
+.vbc:hover .fr{stroke:#5E7C9A}
+.vbc.sel .fr{stroke:#FFD58A;stroke-width:3.5}
+.vbside{display:flex;flex-direction:column;gap:10px}
+.vbcard{background:#0C141C;border:1px solid var(--line);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.vbcard h3{font-size:22px;color:#FFE1C7}
+.vbcard p{margin:0;font-size:14px;line-height:1.5}
+.vbcap{font-size:15px;line-height:1.45;min-height:66px;background:#1B1408;border-left:4px solid var(--press);padding:10px 12px;border-radius:6px}
+.semaNote{font-size:12px;color:var(--muted)}
+/* ---- projection mode ---- */
+#stage{display:none}
+body.proj{overflow:hidden;font-size:17px}
+body.proj .wrap{display:none}
+body.proj #stage{display:grid;grid-template-columns:minmax(0,1fr) 350px;grid-template-rows:minmax(0,1fr) auto;gap:12px;height:100%;padding:12px}
+html,body{height:100%}
+#sMain{grid-column:1;grid-row:1;min-height:0;min-width:0;display:flex}
+#sMain>.panel{flex:1;min-height:0}
+#sSide{grid-column:2;grid-row:1 / 3;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:12px}
+#sBot{grid-column:1;grid-row:2;display:flex;flex-direction:column;gap:8px;min-width:0}
+#sBot .panel{padding:10px 14px}
+body.proj #sMain svg.big{flex:1 1 0;min-height:0;width:100%;height:100%}
+body.proj #sMain .vbwrap{flex:1 1 0;min-height:0}
+body.proj #sMain .vbcell{min-height:0}
+body.proj #sMain #vbSvg{height:100%}
+body.proj #sMain #pumpSvg{width:100%;height:100%;max-height:60vh}
+body.proj .explain{font-size:19px}
+body.proj .panel h2{font-size:22px}
+.sbar{display:flex;gap:10px;align-items:center;justify-content:flex-end;flex-wrap:wrap}
 /* ---- remote / QR ---- */
 .linkchip{font-size:13px;color:var(--muted);display:inline-flex;align-items:center;gap:6px}
 .dot{width:10px;height:10px;border-radius:50%;background:#4C5E70;display:inline-block}
@@ -146,6 +180,7 @@ input[type=range]{width:100%;accent-color:var(--press)}
       <button class="btn" id="pauseBtn">Pausa</button>
       <button class="btn" id="resetBtn">Reiniciar</button>
       <button class="btn on" id="connectBtn">📱 Conectar celular</button>
+      <button class="btn" id="projBtn">Modo proyección</button>
       <span class="linkchip"><span class="dot" id="linkDot"></span><span id="linkTxt">Celular sin conectar</span></span>
     </div>
   </header>
@@ -183,11 +218,28 @@ input[type=range]{width:100%;accent-color:var(--press)}
             <div class="hold"><button class="btn small" id="t1" aria-label="Mantener prueba SYS 1">SYS 1</button><button class="btn small" id="t2" aria-label="Mantener prueba SYS 2">SYS 2</button></div>
             <span class="s">Retorno por resorte: mantén pulsado</span></div>
           <div class="sw"><span class="t">EPU</span><button class="btn" id="epuBtn">Desconectada</button><span class="s">Límite bomba aux: 90 s solo batería · 5 min con EPU</span></div>
+          <div class="sw" style="grid-column:1 / 3"><span class="t">Piloto automático (AFCS) · SEMA</span><button class="btn" id="apBtn">AFCS OFF</button><span class="s" id="apTxt">Los SEMA quedan en neutro: la entrada al actuador es solo la del piloto.</span></div>
         </div>
         <button class="btn" id="selfTestBtn">Autoprueba de encendido Helionix</button>
       </section>
     </div>
   </div>
+
+  <section class="panel" id="vbPanel" aria-label="Corte del bloque de válvulas y depósito">
+    <h2>Bloque de válvulas y depósito · corte en vivo
+      <span class="row" style="gap:8px">
+        <span class="seg" id="vbSeg" role="group" aria-label="Sistema"><button data-v="0" class="on">SYS 1</button><button data-v="1">SYS 2</button></span>
+        <button class="btn small on" id="tourBtn">Seguir la gota: ON</button>
+      </span>
+    </h2>
+    <div class="vbwrap">
+      <div class="vbcell"><svg id="vbSvg" class="big" viewBox="0 0 1000 620" role="img" aria-label="Corte animado del bloque de válvulas y del depósito con el estado de cada válvula"></svg></div>
+      <div class="vbside">
+        <div class="vbcap" id="vbCap">Toca cualquier pieza del corte para ver qué hace y su estado.</div>
+        <div class="vbcard" id="vbCard"></div>
+      </div>
+    </div>
+  </section>
 
   <div class="grid-low">
     <section class="panel" aria-label="Mandos del piloto">
@@ -254,6 +306,11 @@ input[type=range]{width:100%;accent-color:var(--press)}
   </div>
 </div>
 
+<div id="stage" aria-label="Modo proyección">
+  <div id="sMain"></div>
+  <div id="sSide"></div>
+  <div id="sBot"><div class="sbar"><span class="linkchip"><span class="dot" id="sDot"></span><span id="sLink">Control desde el celular</span></span><button class="btn small" id="fsBtn">Pantalla completa</button><button class="btn small" id="exitProj">Salir de proyección</button></div></div>
+</div>
 <div class="modal" id="qrModal" role="dialog" aria-modal="true" aria-labelledby="qrTitle">
   <div class="box">
     <h2 id="qrTitle" style="font-size:24px">Controlar desde el celular</h2>
@@ -305,6 +362,21 @@ input[type=range]{width:100%;accent-color:var(--press)}
     <div class="seg" id="rSpd" style="align-self:flex-start"><button data-s="1">×1</button><button data-s="5">×5</button><button data-s="20">×20</button></div>
     <div class="rgrid"><button class="btn" id="rOv">Prueba override</button><button class="btn" id="rReset">Reiniciar</button></div>
   </section>
+  <section class="panel">
+    <h2>Qué se proyecta</h2>
+    <div class="rgrid">
+      <button class="btn big" data-view="general">Esquema general</button><button class="btn big" data-view="bloque">Bloque de válvulas</button>
+      <button class="btn big" data-view="actuador">Actuador / SEMA</button><button class="btn big" data-view="bomba">Bomba</button>
+    </div>
+    <div class="rgrid"><button class="btn" id="rProj">Proyección</button><button class="btn" id="rAp">AFCS / SEMA</button></div>
+  </section>
+  <section class="panel">
+    <h2>Bloque de válvulas</h2>
+    <div class="row"><div class="seg" id="rVbSys"><button data-i="0">SYS 1</button><button data-i="1">SYS 2</button></div><button class="btn" id="rTour">Seguir la gota</button></div>
+    <div class="rgrid" id="rComps"></div>
+    <span class="note" id="rCard"></span>
+    <div class="row"><span class="note">Bomba en pantalla:</span><div class="seg" id="rPumpSel"><button data-i="0">Bomba 1</button><button data-i="1">Bomba 2</button></div></div>
+  </section>
   <section class="panel"><h2>Fallas</h2><div class="rfails" id="rFails"></div></section>
   <section class="panel"><h2>Escenarios</h2><div class="rfails" id="rScen"></div></section>
 </div>
@@ -337,7 +409,8 @@ const FAILS = [
   ["jam","Spool del SYS 1 atascado (eje seleccionado)","El override mecánico pasa ese sistema a bypass."],
   ["auxcheck","Retención de la bomba auxiliar fallada","Flujo inverso: HYD1 DEGRADED."],
   ["sens2","Transmisor de presión SYS 2 sin señal","VMS SENSOR a los 20 s; VMS/UMS SIGNAL en la autoprueba."],
-  ["psw1","Switch de presión SYS 1 sin señal","HYD1 PRESS SENSOR en la autoprueba."]
+  ["psw1","Switch de presión SYS 1 sin señal","HYD1 PRESS SENSOR en la autoprueba."],
+  ["sema1","SEMA 1 fallado en neutro (todos los ejes)","Con AFCS ON solo corrige el SEMA 2: la mitad de autoridad."]
 ];
 
 /* ---------------- state ---------------- */
@@ -351,7 +424,7 @@ function fresh(){
     fail:{}, jamAxis:"coll",
     sys:[0,1].map(()=>({ps:P_OP, pd:P_OP, level:.62, low:false, prevPd:P_OP, trendT:0, trend:false, relief:false, q:0, qmax:9, swash:.2, invalidT:0})),
     traShut:false, degraded:false, selfTest:{signal:false, psw:false},
-    act:{}, ovTest:0, log:[], prevMsgs:new Set(), aural:"", auralT:0
+    act:{}, ovTest:0, ap:false, sema:{}, turb:0, log:[], prevMsgs:new Set(), aural:"", auralT:0
   };
   for(const k in AX){
     const st = AX[k].stroke;
@@ -383,7 +456,21 @@ function step(dt){
     S.inp.ped  = .5 + .35*Math.sin(a*.47+.5);
   }
   const map = {long:S.inp.long, lat:S.inp.lat, coll:S.inp.coll, tail:S.inp.ped};
-  for(const k in AX) S.act[k].xin = map[k]*AX[k].stroke;
+  // SEMA: two series actuators per axis change the input rod length (illustrative authority ±5 % of stroke each)
+  S.turb += dt;
+  for(const k in AX){
+    const st=AX[k].stroke, auth=.05*st;
+    const sm = S.sema[k] || (S.sema[k]={e1:0,e2:0,dist:0});
+    const ph = {long:0,lat:1.7,coll:3.1,tail:4.4}[k];
+    sm.dist = (Math.sin(S.turb*1.3+ph)*.6 + Math.sin(S.turb*2.9+ph*2)*.4) * auth*1.6;   // turbulence the AFCS cancels
+    let want = S.ap ? -sm.dist/2 : 0;
+    const t1 = (S.ap && !S.fail.sema1) ? clamp(want,-auth,auth) : 0;
+    const t2 = S.ap ? clamp(S.fail.sema1 ? -sm.dist : want,-auth,auth) : 0;
+    sm.e1 += clamp(t1-sm.e1,-auth*4*dt,auth*4*dt);
+    sm.e2 += clamp(t2-sm.e2,-auth*4*dt,auth*4*dt);
+    S.act[k].xpil = map[k]*st;
+    S.act[k].xin = clamp(map[k]*st + sm.e1 + sm.e2, 0, st);
+  }
 
   // ---- per system supply ----
   for(let i=0;i<2;i++){
@@ -564,6 +651,17 @@ function buildSchematic(){
     if(k!=="tail") el("line",{x1:cx,y1:y0,x2:cx,y2:172,stroke:"#5E7C9A","stroke-width":3,"stroke-dasharray":"4 3"});
     g.style.cursor="pointer";
     g.addEventListener("click",()=>selectAxis(k));
+    // duplex SEMA rod feeding the actuator input (SEMA 1 top, SEMA 2 bottom)
+    const sx = cx-78, sy = y0-25;
+    const sg=el("g",{});
+    el("rect",{x:sx,y:sy,width:64,height:22,rx:4,fill:"#0E1822",stroke:"#7FB2E8","stroke-width":1.2},sg);
+    txt(sx-4,sy+15,k==="tail"?"Yaw SEMA":"SEMA",{"text-anchor":"end",fill:"#7FB2E8","font-size":11,"font-weight":600},sg);
+    for(let j=0;j<2;j++){
+      el("rect",{x:sx+5,y:sy+3+j*9,width:54,height:7,rx:2,fill:"#1D2A38"},sg);
+      el("rect",{x:sx+31,y:sy+3+j*9,width:2,height:7,fill:"#5E7C9A"},sg);
+      el("rect",{x:sx+29,y:sy+3+j*9,width:6,height:7,rx:1,fill:"#7FB2E8",id:`sema-${k}-${j}`},sg);
+    }
+    el("line",{x1:sx+32,y1:sy+22,x2:sx+32,y2:y0,stroke:"#7FB2E8","stroke-width":1.4,"stroke-dasharray":"3 3"},sg);
   }
   txt(500,146,"",{});
 
@@ -579,6 +677,7 @@ function buildSchematic(){
   sysDef.forEach((d,i)=>{
     const g=el("g",{});
     // valve block
+    g.style.cursor="pointer"; g.addEventListener("click",()=>{ openVB(i); });
     el("rect",{x:d.bx,y:430,width:130,height:150,rx:8,fill:"#141F2B",stroke:"#3A5068","stroke-width":1.5},g);
     txt(d.bx+65,450,"Bloque de válvulas",{"text-anchor":"middle",fill:"#DDE7F1","font-size":13,"font-weight":600},g);
     const items=["Antirretorno","Filtro","Alivio 122 bar","Solenoide","Shut-off","Switch / transd."];
@@ -762,6 +861,8 @@ function render(dtv){
   renderCockpit();
   renderDetail();
   renderPump();
+  renderVB(dtv);
+  renderSema();
 }
 
 function chamberColors(A, sv){
@@ -864,7 +965,8 @@ function renderDetail(){
   const q = A.sys[0].q + A.sys[1].q;
   const kv=[["Entrada",A.xin.toFixed(1)+" mm"],["Salida (pistón)",A.xp.toFixed(1)+" mm"],["Carrera",ax.stroke+" mm"],
     ["Velocidad",Math.abs(A.v).toFixed(0)+" mm/s"],["Vel. nominal",ax.vmax+" mm/s"],["Caudal",q.toFixed(2)+" L/min"],
-    ["Carga del rotor",A.load.toFixed(0)+" N"],["Fuerza disponible",A.cap.toFixed(0)+" N"],["Sistemas activos",A.n+" de 2"]];
+    ["Carga del rotor",A.load.toFixed(0)+" N"],["Fuerza disponible",A.cap.toFixed(0)+" N"],["Sistemas activos",A.n+" de 2"],
+    ["Mando del piloto",(A.xpil||A.xin).toFixed(1)+" mm"],["SEMA 1 + SEMA 2",((S.sema[k]||{e1:0}).e1>=0?"+":"")+(((S.sema[k]||{e1:0,e2:0}).e1+(S.sema[k]||{e1:0,e2:0}).e2)).toFixed(2)+" mm"],["AFCS",S.ap?"ON":"OFF"]];
   $("kv").innerHTML = kv.map(x=>`<div><span>${x[0]}</span><b>${x[1]}</b></div>`).join("");
   const anyP = S.sys[0].pd>5 || S.sys[1].pd>5;
   $("ovTxt").textContent = S.ovTest>0 ? (anyP ? "Sin efecto: el sistema tiene presión. Haz la prueba con el rotor parado y sin bomba auxiliar." :
@@ -916,6 +1018,7 @@ function explain(){
   if(S.fail.comp1) out.push("El compensador de la bomba 1 no reduce el caudal: la presión sube hasta que abre el alivio de alta a 122 bar, que descarga a retorno. El VMS pasa la zona ámbar de 121 bar: HYD OVERLIMIT.");
   if(S.fail.break2) out.push("Rotura en SYS 2: el fluido se pierde, cae la presión y el nivel. HYD TREND avisa de la caída antes de LOW PRESS.");
   if(S.fail.jam){ const j=S.act[S.jamAxis]; out.push(`Spool del SYS 1 atascado en ${AX[S.jamAxis].name.toLowerCase()}: ${j.sys[0].ov?"la entrada desplazó spool y camisa contra el resorte; la línea de control se abrió a retorno, la shut-off cerró y el bypass abrió. Ese eje sigue con el SYS 2.":"en cuanto muevas el mando, el override mecánico liberará el eje."}`); }
+  if(S.ap) out.push(`AFCS ON: los SEMA ${S.fail.sema1?"(solo el 2, el 1 está fallado) ":""}alargan o acortan la varilla de entrada para compensar la turbulencia. El actuador hidráulico recibe la suma piloto + SEMA y la amplifica; el piloto no siente estos movimientos en los mandos.`);
   if(S.gust>0) out.push("Ráfaga: la fuerza de reacción del rotor sube de golpe.");
   if(S.degraded) out.push("La retención de la bomba auxiliar dejó pasar flujo inverso desde el SYS 1: HYD1 DEGRADED.");
   if(S.fail.sens2) out.push(s2.invalidT>20 ? "Transmisor SYS 2 inválido por más de 20 s: VMS SENSOR y asteriscos ámbar en el VMS." : `Transmisor SYS 2 sin señal: VMS SENSOR aparecerá tras 20 s de confirmación (${s2.invalidT.toFixed(0)} s).`);
@@ -1006,6 +1109,371 @@ function syncInputs(){
 }
 
 
+
+/* ================= valve block cutaway ================= */
+const VB = {sys:0, sel:null, tour:true, tourD:0, lines:{}, flat:[], total:0, cur:-1};
+const vbs = $("vbSvg");
+function vE(tag,a,p){ const e=document.createElementNS(NS,tag); for(const k in a) e.setAttribute(k,a[k]); (p||vbs).appendChild(e); return e; }
+function vT(x,y,str,a,p){ const t=vE("text",Object.assign({x,y,fill:"#9FB1C4","font-size":14},a||{}),p); t.textContent=str; return t; }
+function vLine(id,d,kind,w){
+  w=w||7;
+  vE("path",{d,fill:"none",stroke:"#0A1017","stroke-width":w+6,"stroke-linejoin":"round"});
+  const base=vE("path",{d,fill:"none",stroke:"#36475A","stroke-width":w,"stroke-linejoin":"round"});
+  const dash=vE("path",{d,fill:"none",stroke:"#fff","stroke-width":Math.max(2,w-3),"stroke-dasharray":"9 13","stroke-linejoin":"round",opacity:0});
+  VB.lines[id]={base,dash,kind,off:0};
+}
+function vSet(id,on,flow,dt,forceColor){
+  const L=VB.lines[id]; if(!L) return;
+  const c = forceColor || (on ? (L.kind==="p"?"#F08A3C":L.kind==="c"?"#F0A86A":"#4FA3E0") : "#36475A");
+  L.base.setAttribute("stroke",c);
+  if(on && flow>.02 && !reduce){ L.off-=(20+flow*26)*dt; L.dash.setAttribute("stroke-dashoffset",L.off.toFixed(1)); L.dash.setAttribute("opacity",".85"); L.dash.setAttribute("stroke", L.kind==="r"?"#D5ECFF":"#FFE1C7"); }
+  else L.dash.setAttribute("opacity",0);
+}
+function vComp(id,x,y,w,h,draw){
+  const g=vE("g",{class:"vbc","data-c":id,tabindex:"0",role:"button","aria-label":(COMPS[id]||{}).n||id});
+  vE("rect",{class:"fr",x:x-6,y:y-6,width:w+12,height:h+12,rx:8},g);
+  draw(g);
+  g.addEventListener("click",()=>selectComp(id,true));
+  g.addEventListener("keydown",e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); selectComp(id,true);} });
+  return g;
+}
+function vSt(i){ // live state for system i
+  const s=S.sys[i];
+  const pumpRun = S.rotor>.05 && !(i===1 && S.fail.pump2) && s.level>.02;
+  const sol = (S.test===1 && i===1) || (S.test===2 && i===0);
+  let qm=0; for(const k of ["long","coll","lat"]) qm+=S.act[k].sys[i].q;
+  const qt=S.act.tail.sys[i].q;
+  return {s, pumpRun, sol, shutOpen: !sol && s.ps>50, checkOpen: pumpRun && s.ps>5, qm, qt,
+    tra: i===0 ? !S.traShut : true, preload: s.ps>5 ? s.ps/60 : 0};
+}
+const COMPS = {
+  check:{n:"Válvula antirretorno", f:"Va justo después de la bomba: deja pasar el fluido hacia el bloque e impide el flujo inverso.", st:v=>v.checkOpen?"ABIERTA: la bomba está entregando caudal.":"CERRADA: la bomba no entrega; la válvula evita que el fluido vuelva hacia ella."},
+  filter:{n:"Filtro", f:"Evita la contaminación del sistema reteniendo partículas antes de los actuadores.", st:v=>v.s.ps>5?`En servicio · caudal ${Math.min(v.s.q,v.s.qmax||0).toFixed(2)} L/min`:"Sin caudal."},
+  hprelief:{n:"Válvula de alivio de alta", f:"Protege contra sobrecarga: abre a 122 bar y descarga el exceso a retorno.", st:v=>v.s.relief?`ABIERTA · ${v.s.ps.toFixed(0)} bar: descargando a retorno.`:`Cerrada · ${v.s.ps.toFixed(0)} bar (abre a 122 bar).`},
+  solenoid:{n:"Válvula solenoide", f:"Parte de la prueba en tierra. Al poner HYD TEST en el OTRO sistema se energiza y cierra la shut-off de este sistema.", st:v=>v.sol?"ENERGIZADA: la línea de control se descarga y la shut-off cierra.":"Desenergizada (posición normal)."},
+  shutoff:{n:"Válvula shut-off", f:"Abre o corta el suministro a los actuadores del rotor principal. La manda la solenoide.", st:v=>v.shutOpen?"ABIERTA: hay presión hacia los actuadores.":"CERRADA: este sistema no alimenta los actuadores (LOW PRESS)."},
+  psw:{n:"Switch / transductor de presión", f:"El transductor da la indicación del VMS. El switch enciende LOW PRESS bajo 69 bar y lo apaga sobre 83 bar.", st:v=>`${v.s.pd.toFixed(0)} bar en el VMS · LOW PRESS ${v.s.low?"ENCENDIDO":"apagado"}`},
+  port:{n:"Puerto de medición de presión", f:"Puerto de mantenimiento en el lado de alta presión, para prueba de presión.", st:v=>`${v.s.ps.toFixed(0)} bar en el puerto.`},
+  trashut:{n:"Shut-off del rotor de cola (TRA)", f:"Solo SYS 1, por seguridad. La manda una válvula piloto movida por el pistón de baja: si el nivel baja cerca de MIN (0.19–0.20 l) corta el suministro del SYS 1 al actuador de cola.", st:v=>v.tra?"ABIERTA: el SYS 1 alimenta el rotor de cola.":"CERRADA: caution HYD1 TR SHUT OFF.", sys1:true},
+  pilot:{n:"Válvula piloto", f:"Accionada mecánicamente por el pistón de baja presión del depósito; manda la shut-off TRA.", st:v=>`Nivel ${v.s.level.toFixed(2)} l · ${v.tra?"posición normal":"accionada: TRA cortada"}`, sys1:true},
+  trasw:{n:"Switch de presión TRA", f:"Vigila la shut-off del rotor de cola y genera la caution TR SHUT OFF.", st:v=>v.tra?"Sin alarma.":"Activado: TR SHUT OFF.", sys1:true},
+  reservoir:{n:"Depósito", f:"Almacena el fluido (0.8 l). Su precarga de 1.40–1.75 bar alimenta la succión de la bomba.", st:v=>`Nivel ${v.s.level.toFixed(2)} l · precarga ${v.preload.toFixed(2)} bar`},
+  lppiston:{n:"Pistón de baja presión", f:"El pistón grande del pistón doble: presuriza el fluido del depósito. Su posición indica el nivel.", st:v=>`Precarga ${v.preload.toFixed(2)} bar (${v.s.ps.toFixed(0)} bar ÷ 60).`},
+  hppiston:{n:"Pistón de alta presión", f:"El pistón pequeño recibe la presión de operación y empuja al grande: relación de áreas 1:60.", st:v=>`Recibe ${v.s.ps.toFixed(0)} bar.`},
+  sight:{n:"Visor y válvula de purga", f:"El visor indica el aire atrapado; debe estar al menos a la mitad con fluido o hay que purgar el sistema.", st:v=>"Visor lleno: sin aire en el sistema."},
+  lprelief:{n:"Válvula de alivio de baja", f:"Evita daños al depósito por sobrepresión en el lado de baja: abre a 7.50 bar hacia un drenaje por la borda.", st:v=>`Cerrada · ${v.preload.toFixed(2)} bar (abre a 7.50 bar).`},
+  level:{n:"Indicador de nivel", f:"En la parte trasera del depósito, con marcas MIN y MAX.", st:v=>`${v.s.level.toFixed(2)} l de 0.8 l`},
+  vent:{n:"Rejilla de ventilación", f:"Ventilación del lado sin fluido del depósito.", st:v=>"—"}
+};
+
+function buildVB(){
+  vbs.innerHTML=""; VB.lines={};
+  const i=VB.sys, sys1=i===0;
+  const defs=vE("defs",{});
+  const f=vE("filter",{id:"glow",x:"-50%",y:"-50%",width:"200%",height:"200%"},defs);
+  vE("feGaussianBlur",{stdDeviation:"4",result:"b"},f);
+  const m=vE("feMerge",{},f); vE("feMergeNode",{in:"b"},m); vE("feMergeNode",{in:"SourceGraphic"},m);
+  // bodies
+  vE("rect",{x:30,y:50,width:530,height:480,rx:16,fill:"#172231",stroke:"#3A5068","stroke-width":2});
+  vT(48,78,`BLOQUE DE VÁLVULAS · SYS ${i+1}`,{fill:"#F08A3C","font-size":16,"font-weight":700});
+  vE("rect",{x:590,y:120,width:340,height:330,rx:40,fill:"#0E1822",stroke:"#3A5068","stroke-width":2});
+  vT(760,104,"DEPÓSITO",{fill:"#F08A3C","font-size":16,"font-weight":700,"text-anchor":"middle"});
+  // lines
+  vLine("pin","M300 610 V500","p");
+  vLine("pin2","M300 470 V300","p");
+  vLine("gal","M110 300 H560","p");
+  vLine("rel","M470 300 V430","p",5);
+  vLine("port","M300 525 H430","p",4);
+  vLine("ctl","M240 300 V215 H195","c",3);
+  vLine("out","M160 300 V140 H4","p");
+  vLine("tra","M420 300 V4","p");
+  vLine("hpf","M560 300 H575 V80 H895 V258","p",3);
+  vLine("ret","M4 430 H602","r");
+  vLine("traRet","M520 610 V430","r",5);
+  vLine("suc","M650 450 V610","r");
+  vLine("drain","M790 450 V610","r",4);
+  if(sys1) vLine("auxIn","M60 610 V300 H110","p",5);
+  // reservoir interior
+  vE("rect",{x:600,y:130,width:200,height:310,fill:"#4FA3E0",opacity:.82,id:"vbFluid"});
+  vE("rect",{x:800,y:128,width:18,height:314,rx:3,fill:"#9FB1C4",id:"vbPiston"});
+  vE("line",{x1:818,y1:270,x2:895,y2:270,stroke:"#9FB1C4","stroke-width":8,id:"vbRod"});
+  vT(620,160,"",{id:"vbLvlT",fill:"#0A1017","font-size":15,"font-weight":700});
+  // ports labels
+  vT(8,162,"A actuadores rotor principal",{"font-size":13,fill:"#FFD3AE"});
+  vT(8,418,"Retorno de los actuadores",{"font-size":13,fill:"#BFE0FF"});
+  vT(428,22,"A rotor de cola",{"font-size":13,fill:"#FFD3AE"});
+  vT(308,598,"Desde la bomba (P)",{"font-size":13,fill:"#FFD3AE"});
+  vT(528,598,"Retorno TRA",{"font-size":13,fill:"#BFE0FF"});
+  vT(658,598,"A la bomba (succión)",{"font-size":13,fill:"#BFE0FF"});
+  vT(800,598,"Drenaje por la borda",{"font-size":13,fill:"#8FA2B6"});
+  if(sys1) vT(68,598,"Bomba aux.",{"font-size":13,fill:"#FFD3AE"});
+  vT(690,96,"",{});
+  vT(578,74,"presión de operación al pistón pequeño",{"font-size":12,fill:"#8FA2B6"});
+
+  // components
+  vComp("check",282,470,36,32,g=>{
+    vE("path",{d:"M284 500 L300 482 L316 500",fill:"none",stroke:"#DDE7F1","stroke-width":3},g);
+    vE("circle",{cx:300,cy:478,r:9,fill:"#DDE7F1",id:"vbBall"},g);
+    vT(326,492,"Antirretorno",{fill:"#DDE7F1"},g);
+  });
+  vComp("filter",276,350,48,62,g=>{
+    vE("rect",{x:276,y:350,width:48,height:62,rx:5,fill:"#2A2014",stroke:"#C9A15A","stroke-width":2},g);
+    vE("polyline",{points:"282,356 318,364 282,372 318,380 282,388 318,396 282,404",fill:"none",stroke:"#C9A15A","stroke-width":2},g);
+    vT(332,386,"Filtro",{fill:"#DDE7F1"},g);
+  });
+  vComp("hprelief",452,345,36,46,g=>{
+    vE("rect",{x:452,y:345,width:36,height:46,rx:5,fill:"#111C28",stroke:"#DDE7F1","stroke-width":1.5},g);
+    vE("circle",{cx:470,cy:382,r:7,fill:"#DDE7F1",id:"vbRelBall"},g);
+    vE("polyline",{points:"470,374 462,370 478,364 462,358 478,352 470,348",fill:"none",stroke:"#8FA2B6","stroke-width":2,id:"vbRelSpring"},g);
+    vT(494,360,"Alivio",{fill:"#DDE7F1"},g); vT(494,377,"122 bar",{fill:"#8FA2B6","font-size":12},g);
+  });
+  vComp("port",428,514,24,22,g=>{
+    vE("polygon",{points:"432,514 448,514 454,525 448,536 432,536 426,525",fill:"#111C28",stroke:"#DDE7F1"},g);
+    vT(340,552,"Puerto de medición",{fill:"#8FA2B6","font-size":12},g);
+  });
+  vComp("solenoid",210,196,58,36,g=>{
+    vE("rect",{x:210,y:196,width:58,height:36,rx:5,fill:"#111C28",stroke:"#DDE7F1","stroke-width":1.5,id:"vbSolBox"},g);
+    for(let j=0;j<5;j++) vE("line",{x1:218+j*10,y1:200,x2:218+j*10,y2:228,stroke:"#8FA2B6","stroke-width":2},g);
+    vT(210,250,"Solenoide",{fill:"#DDE7F1"},g);
+  });
+  vComp("shutoff",138,196,44,40,g=>{
+    vE("rect",{x:138,y:196,width:44,height:40,rx:5,fill:"#111C28",stroke:"#DDE7F1","stroke-width":1.5},g);
+    vE("rect",{x:144,y:212,width:32,height:8,rx:2,fill:"#DDE7F1",id:"vbShutSpool"},g);
+    vT(64,222,"Shut-off",{fill:"#DDE7F1"},g);
+  });
+  vComp("psw",76,84,48,48,g=>{
+    vE("circle",{cx:100,cy:108,r:24,fill:"#0B1118",stroke:"#DDE7F1","stroke-width":1.5},g);
+    vE("line",{x1:100,y1:108,x2:100,y2:90,stroke:"#F08A3C","stroke-width":3,"stroke-linecap":"round",id:"vbNeedle"},g);
+    vE("line",{x1:100,y1:132,x2:100,y2:140,stroke:"#DDE7F1","stroke-width":3},g);
+    vT(132,100,"Switch /",{fill:"#DDE7F1","font-size":13},g); vT(132,116,"transductor",{fill:"#DDE7F1","font-size":13},g);
+    vT(132,134,"",{id:"vbPswT","text-anchor":"start",fill:"#FFE1C7","font-size":13,"font-family":"JetBrains Mono, monospace"},g);
+  });
+  if(sys1){
+    vComp("trashut",398,170,44,40,g=>{
+      vE("rect",{x:398,y:170,width:44,height:40,rx:5,fill:"#111C28",stroke:"#DDE7F1","stroke-width":1.5},g);
+      vE("rect",{x:404,y:186,width:32,height:8,rx:2,fill:"#DDE7F1",id:"vbTraSpool"},g);
+      vT(330,165,"Shut-off TRA",{fill:"#DDE7F1"},g);
+    });
+    vComp("trasw",452,120,38,26,g=>{
+      vE("line",{x1:420,y1:133,x2:452,y2:133,stroke:"#DDE7F1","stroke-width":2},g);
+      vE("rect",{x:452,y:120,width:38,height:26,rx:4,fill:"#111C28",stroke:"#DDE7F1",id:"vbTraSw"},g);
+      vT(458,138,"PS",{fill:"#DDE7F1","font-size":12},g);
+      vT(496,138,"Switch TRA",{fill:"#8FA2B6","font-size":12},g);
+    });
+    vComp("pilot",488,212,30,30,g=>{
+      vE("rect",{x:488,y:212,width:30,height:30,rx:4,fill:"#111C28",stroke:"#DDE7F1"},g);
+      vE("line",{x1:488,y1:227,x2:442,y2:200,stroke:"#8FA2B6","stroke-width":2,"stroke-dasharray":"4 3"},g);
+      vE("line",{x1:518,y1:227,x2:800,y2:227,stroke:"#8FA2B6","stroke-width":2,"stroke-dasharray":"4 3",id:"vbPilotLink"},g);
+      vT(470,262,"Válvula piloto",{fill:"#DDE7F1","font-size":13},g);
+    });
+  }
+  vComp("hppiston",872,252,46,36,g=>{
+    vE("rect",{x:872,y:252,width:46,height:36,rx:4,fill:"#3B2412",stroke:"#F08A3C","stroke-width":1.5,id:"vbHpCh"},g);
+    vT(918,310,"Pistón pequeño",{fill:"#DDE7F1","font-size":12,"text-anchor":"end"},g);
+  });
+  vComp("lppiston",800,300,18,30,g=>{ vE("rect",{x:800,y:300,width:18,height:30,fill:"transparent"},g); });
+  vComp("sight",636,108,52,26,g=>{
+    vE("circle",{cx:650,cy:122,r:11,fill:"#4FA3E0",stroke:"#DDE7F1","stroke-width":1.5},g);
+    vE("rect",{x:668,y:112,width:16,height:14,rx:2,fill:"#111C28",stroke:"#DDE7F1"},g);
+    vT(600,96,"Visor · purga",{fill:"#DDE7F1","font-size":12},g);
+  });
+  vComp("vent",880,140,36,22,g=>{
+    vE("rect",{x:880,y:140,width:36,height:22,rx:3,fill:"none",stroke:"#8FA2B6","stroke-dasharray":"2 2"},g);
+    vT(842,178,"Rejilla de ventilación",{fill:"#8FA2B6","font-size":11},g);
+  });
+  vComp("lprelief",772,480,36,46,g=>{
+    vE("rect",{x:772,y:480,width:36,height:46,rx:5,fill:"#111C28",stroke:"#DDE7F1","stroke-width":1.5},g);
+    vE("circle",{cx:790,cy:488,r:7,fill:"#DDE7F1"},g);
+    vE("polyline",{points:"790,496 782,500 798,506 782,512 798,518 790,522",fill:"none",stroke:"#8FA2B6","stroke-width":2},g);
+    vT(814,500,"Alivio de baja",{fill:"#DDE7F1","font-size":13},g); vT(814,516,"7.50 bar",{fill:"#8FA2B6","font-size":12},g);
+  });
+  vComp("level",934,236,58,66,g=>{
+    vE("rect",{x:938,y:240,width:50,height:60,rx:6,fill:"#0B1118",stroke:"#3A5068"},g);
+    vE("rect",{x:948,y:248,width:12,height:46,fill:"#1D2A38"},g);
+    vE("rect",{x:949,y:270,width:10,height:24,fill:"#4FA3E0",id:"vbLvlBar"},g);
+    vT(964,256,"MAX",{fill:"#F2B33D","font-size":10},g); vT(964,292,"MIN",{fill:"#F2B33D","font-size":10},g);
+    vT(963,322,"Nivel",{fill:"#8FA2B6","font-size":12,"text-anchor":"middle"},g);
+  });
+  // reservoir body last-but-one so it is clickable but under the piston
+  const rg=vE("g",{class:"vbc","data-c":"reservoir"});
+  vE("rect",{class:"fr",x:600,y:330,width:150,height:100,rx:8},rg);
+  vE("rect",{x:600,y:330,width:150,height:100,fill:"transparent"},rg);
+  rg.addEventListener("click",()=>selectComp("reservoir",true));
+  vbs.insertBefore(rg, $("vbPiston"));
+  // drop
+  VB.drop = vE("circle",{cx:-50,cy:-50,r:10,fill:"#FFE1C7",filter:"url(#glow)",id:"vbDrop"});
+  buildTour();
+  selectComp(VB.sel && COMPS[VB.sel] && !(COMPS[VB.sel].sys1 && !sys1) ? VB.sel : null, false);
+}
+
+const TOUR = [
+  {p:[[720,300],[650,300],[650,610]], c:"Depósito → succión: el pistón grande mantiene el fluido a ≈1.7 bar (103 bar ÷ 60) y lo empuja hacia la bomba.", k:"lppiston", col:"r"},
+  {jump:true, p:[[300,610],[300,500]], c:"La bomba de pistones, en la transmisión, lo eleva a 103 bar y lo devuelve al bloque por la línea P.", k:null, col:"p"},
+  {p:[[300,500],[300,470]], c:"Antirretorno: abre hacia el bloque. Si la bomba se detiene, cierra y evita el flujo inverso.", k:"check", col:"p"},
+  {p:[[300,470],[300,350]], c:"Filtro: retiene las partículas antes de que lleguen a los actuadores.", k:"filter", col:"p"},
+  {p:[[300,350],[300,300],[160,300]], c:"Galería de alta presión. El alivio de 122 bar vigila que la presión no se pase.", k:"hprelief", col:"p"},
+  {p:[[160,300],[160,215]], c:"Shut-off: abierta mientras la solenoide está desenergizada (sin prueba HYD TEST).", k:"shutoff", col:"p"},
+  {p:[[160,215],[160,140],[100,140]], c:"Switch / transductor: esta es la presión que se ve en el VMS. Bajo 69 bar enciende LOW PRESS.", k:"psw", col:"p"},
+  {p:[[100,140],[4,140]], c:"Sale por tubos de titanio a la manifold backplate y a los actuadores del rotor principal.", k:null, col:"p"},
+  {jump:true, p:[[4,430],[300,430]], c:"En el actuador empujó el pistón; ahora vuelve a baja presión por la línea de retorno…", k:null, col:"r"},
+  {p:[[300,430],[602,430],[700,330]], c:"…y entra de nuevo al depósito. Ciclo completo.", k:"reservoir", col:"r"}
+];
+function buildTour(){
+  VB.flat=[]; let tot=0;
+  TOUR.forEach((sg,si)=>{
+    for(let j=0;j<sg.p.length-1;j++){
+      const a=sg.p[j], b=sg.p[j+1], len=Math.hypot(b[0]-a[0],b[1]-a[1]);
+      VB.flat.push({a,b,len,si,start:tot}); tot+=len;
+    }
+    // small pause at each caption
+    VB.flat.push({a:sg.p[sg.p.length-1],b:sg.p[sg.p.length-1],len:70,si,start:tot}); tot+=70;
+  });
+  VB.total=tot;
+}
+function selectComp(id, user){
+  VB.sel=id;
+  vbs.querySelectorAll(".vbc").forEach(g=>g.classList.toggle("sel", g.dataset.c===id));
+  if(user && VB.tour){ VB.tour=false; syncTourBtn(); }
+  renderCard();
+}
+function renderCard(){
+  const c = VB.sel && COMPS[VB.sel];
+  const card=$("vbCard");
+  if(!c){ card.innerHTML=`<h3>Corte del SYS ${VB.sys+1}</h3><p>Toca una pieza: antirretorno, filtro, alivios, solenoide, shut-off, switch/transductor${VB.sys===0?", shut-off TRA y válvula piloto":""}, pistones del depósito, visor o indicador de nivel.</p><p class="semaNote">Diagrama didáctico basado en los cortes del manual (págs. 05-47 y 05-49); la posición de las piezas es esquemática.</p>`; return; }
+  const v=vSt(VB.sys);
+  card.innerHTML=`<h3>${c.n}</h3><p>${c.f}</p><p><span class="chip ${/CERRADA|ENERGIZADA|ENCENDIDO|Activado|ABIERTA · /.test(c.st(v))?"warn":"ok"}">${c.st(v)}</span></p>`;
+}
+function syncTourBtn(){ $("tourBtn").textContent="Seguir la gota: "+(VB.tour?"ON":"OFF"); $("tourBtn").classList.toggle("on",VB.tour); if(!VB.tour){ VB.drop && VB.drop.setAttribute("cx",-50); } }
+function openVB(i){
+  if(i!==undefined && i!==VB.sys){ VB.sys=i; document.querySelectorAll("#vbSeg button").forEach(b=>b.classList.toggle("on",+b.dataset.v===i)); buildVB(); }
+  if(document.body.classList.contains("proj")) setView("bloque");
+  else $("vbPanel").scrollIntoView({behavior:reduce?"auto":"smooth",block:"start"});
+}
+let cardT=0;
+function renderVB(dt){
+  if(!vbs.firstChild) return;
+  const i=VB.sys, v=vSt(i), s=v.s;
+  const pOn = s.ps>10;
+  vSet("pin", v.pumpRun && pOn, v.checkOpen? s.q:0, dt);
+  vSet("pin2", pOn, v.checkOpen? s.q : (i===0&&S.aux?2:0), dt);
+  vSet("gal", pOn, s.q, dt);
+  vSet("rel", s.relief, s.relief?3:0, dt);
+  vSet("port", pOn, 0, dt);
+  vSet("ctl", pOn && !v.sol, 0, dt, v.sol && pOn ? "#4FA3E0" : null);
+  vSet("out", s.pd>10, v.qm, dt);
+  vSet("tra", pOn && v.tra, v.qt, dt);
+  vSet("hpf", pOn, 0, dt);
+  const retOn = s.level>.02;
+  vSet("ret", retOn, v.qm + (s.relief?3:0), dt);
+  vSet("traRet", retOn, v.qt, dt);
+  vSet("suc", retOn, v.pumpRun? s.q:0, dt);
+  vSet("drain", false, 0, dt);
+  if(i===0) vSet("auxIn", S.aux && s.ps>10, S.aux?2:0, dt);
+  // check valve ball
+  $("vbBall").setAttribute("cy", v.checkOpen? 470 : 486);
+  // relief
+  $("vbRelBall").setAttribute("cy", s.relief? 372 : 382);
+  // solenoid / shut-off
+  $("vbSolBox").setAttribute("fill", v.sol? "#3B2A12" : "#111C28");
+  $("vbSolBox").setAttribute("stroke", v.sol? "#F2B33D" : "#DDE7F1");
+  $("vbShutSpool").setAttribute("transform", v.shutOpen? "translate(0 -10)" : "");
+  $("vbShutSpool").setAttribute("fill", v.shutOpen? "#5CC58A" : "#F26B5B");
+  // transducer needle
+  const inv = i===1 && S.fail.sens2 && (S.selfTest.signal || s.invalidT>20);
+  const ang = -130 + clamp(s.pd,0,140)/140*260;
+  $("vbNeedle").setAttribute("transform",`rotate(${ang.toFixed(1)} 100 108)`);
+  $("vbPswT").textContent = inv? "*** bar" : s.pd.toFixed(0)+" bar"+(s.low?" · LOW":"");
+  $("vbPswT").setAttribute("fill", inv||s.low? "#F2B33D" : "#FFE1C7");
+  if(i===0){
+    $("vbTraSpool").setAttribute("transform", v.tra? "translate(0 -10)" : "");
+    $("vbTraSpool").setAttribute("fill", v.tra? "#5CC58A" : "#F26B5B");
+    $("vbTraSw").setAttribute("stroke", v.tra? "#DDE7F1" : "#F26B5B");
+  }
+  // reservoir piston: fluid volume ↔ piston position
+  const frac = clamp(s.level/.8,0,1);
+  const px = 612 + frac*240;
+  $("vbFluid").setAttribute("width", Math.max(2, px-600));
+  $("vbPiston").setAttribute("x", px);
+  $("vbRod").setAttribute("x1", px+18);
+  if($("vbPilotLink")) $("vbPilotLink").setAttribute("x2", px);
+  $("vbHpCh").setAttribute("fill", pOn? "#5A3014" : "#1D2A38");
+  $("vbLvlT").textContent = s.level.toFixed(2)+" l · "+v.preload.toFixed(2)+" bar";
+  const lb=$("vbLvlBar"); const h=46*frac; lb.setAttribute("y", 294-h); lb.setAttribute("height", Math.max(1,h));
+  lb.setAttribute("fill", s.level<.2? "#F2B33D" : "#4FA3E0");
+  // tour drop
+  if(VB.tour && VB.total>0){
+    VB.tourD = (VB.tourD + 75*(dt||0)) % VB.total;
+    let seg=VB.flat[0];
+    for(const f of VB.flat){ if(VB.tourD>=f.start) seg=f; else break; }
+    const t = seg.len? clamp((VB.tourD-seg.start)/seg.len,0,1) : 0;
+    const x = seg.a[0]+(seg.b[0]-seg.a[0])*t, y = seg.a[1]+(seg.b[1]-seg.a[1])*t;
+    VB.drop.setAttribute("cx",x.toFixed(1)); VB.drop.setAttribute("cy",y.toFixed(1));
+    const tc=TOUR[seg.si];
+    VB.drop.setAttribute("fill", tc.col==="p"?"#FFD0A6":"#CDE8FF");
+    if(VB.cur!==seg.si){
+      VB.cur=seg.si; $("vbCap").textContent = tc.c;
+      if(tc.k && (!COMPS[tc.k].sys1 || i===0)){ VB.sel=tc.k; vbs.querySelectorAll(".vbc").forEach(g=>g.classList.toggle("sel", g.dataset.c===tc.k)); renderCard(); }
+    }
+  }
+  cardT+=dt||0; if(cardT>.5){ cardT=0; renderCard(); }
+}
+function wireVB(){
+  document.querySelectorAll("#vbSeg button").forEach(b=>b.addEventListener("click",()=>openVB(+b.dataset.v)));
+  $("tourBtn").addEventListener("click",()=>{ VB.tour=!VB.tour; VB.cur=-1; syncTourBtn(); if(!VB.tour) $("vbCap").textContent="Toca cualquier pieza del corte para ver qué hace y su estado."; });
+}
+
+/* ================= SEMA rendering ================= */
+function renderSema(){
+  for(const k in AX){
+    const sm=S.sema[k]; if(!sm) continue;
+    const auth=.05*AX[k].stroke;
+    [sm.e1,sm.e2].forEach((e,j)=>{
+      const r=$(`sema-${k}-${j}`); if(!r) return;
+      r.setAttribute("transform",`translate(${(e/auth*22).toFixed(1)} 0)`);
+      r.setAttribute("fill", (j===0 && S.fail.sema1) ? "#F26B5B" : S.ap ? "#7FB2E8" : "#5E7C9A");
+    });
+  }
+  $("apBtn").textContent = "AFCS "+(S.ap?"ON":"OFF"); $("apBtn").classList.toggle("on",S.ap);
+  $("apTxt").textContent = S.ap ? "Los SEMA 1 y 2 corrigen la turbulencia alargando o acortando la varilla de entrada. Autoridad limitada; el piloto no lo siente." : "Los SEMA quedan en neutro: la entrada al actuador es solo la del piloto.";
+}
+
+/* ================= projection mode ================= */
+const PROJ = {on:false, view:"general", ph:new Map()};
+const viewPanel = v => ({general:$("schem"), bloque:$("vbSvg"), actuador:$("detail"), bomba:$("pumpSvg")}[v]||$("schem")).closest("section");
+function park(el, dest){
+  if(!PROJ.ph.has(el)){ const c=document.createComment("ph"); el.parentNode.insertBefore(c, el); PROJ.ph.set(el,c); }
+  dest.appendChild(el);
+}
+function unpark(el){ const c=PROJ.ph.get(el); if(c){ c.parentNode.insertBefore(el,c); c.remove(); PROJ.ph.delete(el); } }
+function setView(v){
+  if(!["general","bloque","actuador","bomba"].includes(v)) return;
+  PROJ.view=v;
+  if(!PROJ.on) return;
+  [...$("sMain").children].forEach(unpark);
+  park(viewPanel(v), $("sMain"));
+}
+function enterProj(){
+  if(PROJ.on) return; PROJ.on=true;
+  document.body.classList.add("proj");
+  park($("fnd").closest("section"), $("sSide"));
+  park($("explain").closest("section"), $("sBot"));
+  $("sBot").appendChild(document.querySelector(".sbar"));
+  setView(PROJ.view);
+  log("Modo proyección: vista "+PROJ.view);
+}
+function exitProj(){
+  if(!PROJ.on) return; PROJ.on=false;
+  [...PROJ.ph.keys()].forEach(unpark);
+  document.body.classList.remove("proj");
+  try{ if(document.fullscreenElement) document.exitFullscreen(); }catch(e){}
+}
+function wireProj(){
+  $("projBtn").addEventListener("click",enterProj);
+  $("exitProj").addEventListener("click",exitProj);
+  $("fsBtn").addEventListener("click",async()=>{ try{ if(!document.fullscreenElement) await document.documentElement.requestFullscreen(); else await document.exitFullscreen(); }catch(e){ $("fsBtn").textContent="Usa F11 para pantalla completa"; } });
+  $("apBtn").addEventListener("click",()=>{ S.ap=!S.ap; log("AFCS "+(S.ap?"ON: los SEMA empiezan a corregir":"OFF: SEMA en neutro")); });
+}
+let wasLinked=false;
 /* ================= link phone <-> screen (room) ================= */
 const PAGE_URL = location.origin + location.pathname;
 let SIM_URL = "", MY_CODE = "";
@@ -1093,6 +1561,8 @@ function updateLinkUI(){
     $("rLink").textContent = !room ? "Conectando… (se necesita internet)" : ok ? "Conectado a la pantalla "+REMOTE_CODE : "Buscando la pantalla "+REMOTE_CODE+"… (déjala abierta y revisa el código)";
   } else {
     const ok = peersRemote>0 || (performance.now()-lastCtl<3000);
+    if(ok && !wasLinked && room){ wasLinked=true; enterProj(); } if(!ok && peersRemote===0) wasLinked=false;
+    $("sDot").classList.toggle("on", ok); $("sLink").textContent = ok ? "Celular conectado: controla desde el celular" : "Esperando al celular…";
     $("linkDot").classList.toggle("on", ok);
     $("linkTxt").textContent = !room ? (linkTried ? "Enlace sin internet" : "Preparando enlace…") : ok ? "Celular conectado" : "Celular sin conectar · código "+MY_CODE;
   }
@@ -1125,7 +1595,14 @@ function startScreenLink(){
       else if(a==="reset"){ $("resetBtn").click(); }
       else if(a==="selftest"){ $("selfTestBtn").click(); }
       else if(a==="ovtest"){ $("ovTestBtn").click(); }
-      else if(a==="axis" && AX_KEYS.includes(d.k)){ selectAxis(d.k); }
+      else if(a==="view" && ["general","bloque","actuador","bomba"].includes(d.k)){ if(!PROJ.on) enterProj(); setView(d.k); }
+      else if(a==="proj"){ v ? enterProj() : exitProj(); }
+      else if(a==="vbsys" && (d.i===0||d.i===1)){ openVB(d.i); }
+      else if(a==="vbsel" && typeof d.k==="string" && COMPS[d.k] && !(COMPS[d.k].sys1 && VB.sys!==0)){ selectComp(d.k,true); if(PROJ.on) setView("bloque"); }
+      else if(a==="tour"){ VB.tour=v; VB.cur=-1; syncTourBtn(); if(PROJ.on) setView("bloque"); }
+      else if(a==="ap"){ S.ap=v; log("Celular: AFCS "+(v?"ON":"OFF")); }
+      else if(a==="pump" && (d.i===0||d.i===1)){ const b=document.querySelector(`#pSeg button[data-p="${d.i}"]`); if(b) b.click(); if(PROJ.on) setView("bomba"); }
+      else if(a==="axis" && AX_KEYS.includes(d.k)){ selectAxis(d.k); if(PROJ.on) setView("actuador"); }
       else if(a==="speed" && [1,5,20].includes(d.s)){ const b=document.querySelector(`#speedSeg button[data-s="${d.s}"]`); if(b) b.click(); }
       else if(a==="fail" && FAIL_KEYS.includes(d.k)){ const cb=$("f-"+d.k); if(cb.checked!==v){ cb.checked=v; cb.dispatchEvent(new Event("change")); } }
       else if(a==="scen" && Number.isInteger(d.i) && d.i>=0 && d.i<SCEN.length){ SCEN[d.i][1](); }
@@ -1138,7 +1615,7 @@ function startScreenLink(){
         const m = messages().map(x=>[[x[0],x[1],x[2]].filter(Boolean).join(" "), x[3]]);
         room.emit("st", {p1:+S.sys[0].pd.toFixed(1), p2:+S.sys[1].pd.toFixed(1), inv2: !!(S.fail.sens2 && (S.selfTest.signal || S.sys[1].invalidT>20)),
           m, rotor:S.rotorTarget>0, aux:S.aux, epu:S.epu, auto:S.auto, paused:S.paused, test:S.test, speed:S.speed, ax:S.selAx,
-          fails:Object.assign({},S.fail), inp:Object.assign({},S.inp), ex:($("explain").firstChild||{}).textContent||""});
+          fails:Object.assign({},S.fail), inp:Object.assign({},S.inp), ex:($("explain").firstChild||{}).textContent||"", view:PROJ.view, proj:PROJ.on, vbSys:VB.sys, vbSel:VB.sel, tour:VB.tour, ap:S.ap, pump:S.selPump, card:(VB.sel&&COMPS[VB.sel])?COMPS[VB.sel].n+": "+COMPS[VB.sel].st(vSt(VB.sys)):""});
       }catch(e){}
       updateLinkUI();
     }, 250);
@@ -1198,6 +1675,15 @@ function startRemote(){
   $("rSelf").addEventListener("click",()=>act("selftest"));
   $("rOv").addEventListener("click",()=>act("ovtest"));
   $("rReset").addEventListener("click",()=>act("reset"));
+  document.querySelectorAll("#remote [data-view]").forEach(b=>b.addEventListener("click",()=>act("view",{k:b.dataset.view})));
+  $("rProj").addEventListener("click",()=>act("proj",{v:!(R.st&&R.st.proj)}));
+  $("rAp").addEventListener("click",()=>act("ap",{v:!(R.st&&R.st.ap)}));
+  document.querySelectorAll("#rVbSys button").forEach(b=>b.addEventListener("click",()=>{ act("vbsys",{i:+b.dataset.i}); act("view",{k:"bloque"}); }));
+  document.querySelectorAll("#rPumpSel button").forEach(b=>b.addEventListener("click",()=>act("pump",{i:+b.dataset.i})));
+  $("rTour").addEventListener("click",()=>act("tour",{v:!(R.st&&R.st.tour)}));
+  const compKeys = Object.keys(COMPS);
+  $("rComps").innerHTML = compKeys.map(k=>`<button class="btn" data-c="${k}">${COMPS[k].n}</button>`).join("");
+  $("rComps").querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>act("vbsel",{k:b.dataset.c})));
   for(const [id,v] of [["rT1",1],["rT2",2]]){
     const b=$(id);
     const down=e=>{ e.preventDefault(); R.test=v; b.classList.add("held"); sendCtl(false); };
@@ -1234,6 +1720,14 @@ function startRemote(){
     $("rAutoTxt").textContent = st.auto?"movimiento automático":"control manual";
     $("rPause").textContent = st.paused?"Continuar":"Pausa";
     document.querySelectorAll("#rAx button").forEach(b=>b.classList.toggle("on",b.dataset.a===st.ax));
+    document.querySelectorAll("#remote [data-view]").forEach(b=>b.classList.toggle("on", st.proj && b.dataset.view===st.view));
+    $("rProj").textContent = "Proyección: "+(st.proj?"ON":"OFF"); $("rProj").classList.toggle("on",!!st.proj);
+    $("rAp").textContent = "AFCS / SEMA: "+(st.ap?"ON":"OFF"); $("rAp").classList.toggle("on",!!st.ap);
+    $("rTour").textContent = "Seguir la gota: "+(st.tour?"ON":"OFF"); $("rTour").classList.toggle("on",!!st.tour);
+    document.querySelectorAll("#rVbSys button").forEach(b=>b.classList.toggle("on",+b.dataset.i===st.vbSys));
+    document.querySelectorAll("#rPumpSel button").forEach(b=>b.classList.toggle("on",+b.dataset.i===st.pump));
+    $("rComps").querySelectorAll("button").forEach(b=>{ b.classList.toggle("on", b.dataset.c===st.vbSel); b.style.display = (COMPS[b.dataset.c].sys1 && st.vbSys!==0) ? "none" : ""; });
+    $("rCard").textContent = typeof st.card==="string" ? st.card.slice(0,240) : "";
     document.querySelectorAll("#rSpd button").forEach(b=>b.classList.toggle("on",+b.dataset.s===st.speed));
     $("rFails").querySelectorAll("button").forEach(b=>b.classList.toggle("on",!!(st.fails&&st.fails[b.dataset.k])));
     // follow the screen's controls when the phone is idle (e.g. auto mode)
@@ -1257,7 +1751,7 @@ function startRemote(){
 
 /* ---------------- loop ---------------- */
 const IS_REMOTE = REMOTE_CODE.length === 5;
-buildSchematic(); buildDetail(); buildPump(); buildFails(); buildScen(); wire(); syncInputs(); wireQr();
+buildSchematic(); buildDetail(); buildPump(); buildFails(); buildScen(); wire(); syncInputs(); wireQr(); buildVB(); wireVB(); wireProj();
 log("Rotor girando al 100 %: ambos sistemas a 103 bar");
 if(IS_REMOTE){ startRemote(); } else { startScreenLink(); }
 let last=performance.now(), expT=0;
