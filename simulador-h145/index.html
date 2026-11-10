@@ -1,0 +1,1281 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulador hidráulico H145</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root{
+  /* Panel de aviónica nocturno: un solo tema oscuro. Layout: esquema grande + columna de cabina; abajo, mandos, detalle y fallas */
+  --bg:#0A1017; --panel:#111A24; --panel2:#16212E; --line:#24364A; --text:#DDE7F1; --muted:#8FA2B6;
+  --press:#F08A3C; --ret:#4FA3E0; --amber:#F2B33D; --ok:#5CC58A; --bypass:#A493E0; --trap:#C0652B; --dead:#36475A; --red:#F26B5B;
+  --display:'Barlow Condensed', 'Arial Narrow', sans-serif; --body:'Barlow', Arial, sans-serif; --mono:'JetBrains Mono', 'Courier New', monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:var(--body);font-size:15px;line-height:1.4}
+button,select,input{font-family:inherit}
+h1,h2,h3{font-family:var(--display);font-weight:600;letter-spacing:.02em;margin:0;text-wrap:balance}
+.wrap{max-width:1560px;margin:0 auto;padding:16px;display:flex;flex-direction:column;gap:14px}
+header.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+header.top h1{font-size:30px}
+header.top p{margin:2px 0 0;color:var(--muted);max-width:760px}
+.ctrls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.panel h2{font-size:19px;text-transform:uppercase;color:#C9D6E3;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.panel h2 small{font-family:var(--body);font-size:12px;font-weight:500;color:var(--muted);text-transform:none;letter-spacing:0}
+.grid-main{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:14px}
+.grid-low{display:grid;grid-template-columns:300px minmax(0,1.25fr) minmax(0,1fr);gap:14px}
+.grid-low2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr);gap:14px}
+@media (max-width:1180px){.grid-main,.grid-low,.grid-low2{grid-template-columns:1fr}}
+.btn{background:var(--panel2);color:var(--text);border:1px solid #33495F;border-radius:7px;padding:7px 12px;cursor:pointer;font-weight:600;font-size:14px}
+.btn:hover{border-color:#5E7C9A}
+.btn:focus-visible,.sw:focus-visible,input:focus-visible,select:focus-visible,.pad:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+.btn.on{background:#3B2A12;border-color:var(--press);color:#FFD9B8}
+.btn.small{padding:4px 9px;font-size:13px}
+.seg{display:inline-flex;border:1px solid #33495F;border-radius:7px;overflow:hidden}
+.seg button{border:0;border-radius:0;background:var(--panel2);color:var(--muted);padding:6px 10px;cursor:pointer;font-weight:600}
+.seg button.on{background:#24364A;color:var(--text)}
+svg text{font-family:var(--body)}
+#schem{width:100%;height:auto;display:block}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{display:inline-block;width:22px;height:4px;border-radius:2px}
+/* cockpit */
+.vms{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.gauge{background:#070C12;border:1px solid var(--line);border-radius:8px;padding:10px;display:flex;flex-direction:column;align-items:center;gap:6px}
+.gauge .lab{font-family:var(--display);font-size:18px;color:#BFD0E0}
+.gauge .val{font-family:var(--mono);font-size:26px;font-variant-numeric:tabular-nums}
+.gauge .unit{font-size:12px;color:var(--muted)}
+.fnd{background:#05090D;border:1px solid var(--line);border-radius:8px;min-height:170px;padding:8px 10px;font-family:var(--mono);font-size:14px;display:flex;flex-direction:column;gap:3px}
+.fnd .msg{display:grid;grid-template-columns:52px 1fr 52px;gap:6px}
+.fnd .msg .c{text-align:center}
+.fnd .caution{color:var(--amber)}
+.fnd .advisory{color:#E9EEF3}
+.fnd .info{color:#7FD6A0}
+.fnd .none{color:#4C5E70}
+.fnd .msg.blink{animation:bl 1s steps(2) infinite}
+@keyframes bl{50%{opacity:.35}}
+.aural{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.aural b{color:var(--amber)}
+.overhead{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.sw{background:#0C141C;border:1px solid #2C3E52;border-radius:8px;padding:8px;display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.sw .t{font-family:var(--display);font-size:15px;color:#C9D6E3;text-transform:uppercase}
+.sw .s{font-size:12px;color:var(--muted)}
+.hold{display:flex;gap:6px}
+.hold button{min-width:62px}
+.hold button.held,.btn.held{background:#3B2A12;border-color:var(--press);color:#FFD9B8}
+/* pilot */
+.pad{width:200px;height:200px;border-radius:12px;background:radial-gradient(circle at 50% 50%,#1B2A3A,#0C141C);border:1px solid #33495F;position:relative;touch-action:none;cursor:grab;align-self:center}
+.pad::before,.pad::after{content:"";position:absolute;background:#2A3D51}
+.pad::before{left:50%;top:8px;bottom:8px;width:1px}
+.pad::after{top:50%;left:8px;right:8px;height:1px}
+.knob{position:absolute;width:30px;height:30px;margin:-15px 0 0 -15px;border-radius:50%;background:var(--press);box-shadow:0 0 0 4px rgba(240,138,60,.25);z-index:1}
+.padlab{position:absolute;font-size:11px;color:var(--muted)}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.field{display:flex;flex-direction:column;gap:4px;width:100%}
+.field label{font-size:13px;color:var(--muted);display:flex;justify-content:space-between}
+.field label b{color:var(--text);font-family:var(--mono);font-weight:400}
+input[type=range]{width:100%;accent-color:var(--press)}
+/* detail */
+.kv{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.kv div{background:#0C141C;border:1px solid #23364A;border-radius:6px;padding:6px 8px}
+.kv span{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.kv b{font-family:var(--mono);font-weight:400;font-size:15px;font-variant-numeric:tabular-nums}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px;border:1px solid #33495F;color:var(--muted)}
+.chip.ok{color:#9BE3B8;border-color:#2F6A49;background:#0F2419}
+.chip.warn{color:#FFD58A;border-color:#7A5A1C;background:#2A1F0A}
+.chip.bad{color:#FFB2A8;border-color:#7A2F27;background:#2A100D}
+.chip.by{color:#D5CCF7;border-color:#5A4E8A;background:#1B1730}
+.fails{display:flex;flex-direction:column;gap:6px}
+.fails label{display:flex;gap:8px;align-items:flex-start;font-size:14px;cursor:pointer}
+.fails input{margin-top:3px;accent-color:var(--red)}
+.fails small{color:var(--muted);display:block}
+.explain{font-size:14px;line-height:1.5;display:flex;flex-direction:column;gap:6px}
+.explain p{margin:0}
+.explain p::before{content:"▸ ";color:var(--press)}
+.log{font-family:var(--mono);font-size:12px;color:var(--muted);max-height:180px;overflow:auto;display:flex;flex-direction:column-reverse;gap:2px}
+.log div b{color:var(--text);font-weight:400}
+.note{font-size:12px;color:var(--muted)}
+.scen{display:flex;flex-wrap:wrap;gap:6px}
+
+/* ---- remote / QR ---- */
+.linkchip{font-size:13px;color:var(--muted);display:inline-flex;align-items:center;gap:6px}
+.dot{width:10px;height:10px;border-radius:50%;background:#4C5E70;display:inline-block}
+.dot.on{background:var(--ok);box-shadow:0 0 0 3px rgba(92,197,138,.25)}
+.modal{position:fixed;inset:0;background:rgba(3,7,11,.78);display:none;align-items:center;justify-content:center;padding:16px;z-index:20}
+.modal.open{display:flex}
+.modal .box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px;max-width:460px;width:100%;display:flex;flex-direction:column;gap:12px}
+.modal ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px}
+#qr{background:#fff;padding:12px;border-radius:10px;align-self:center;width:264px;height:264px;display:flex;align-items:center;justify-content:center}
+#qr img,#qr canvas{display:block}
+.urlbox{font-family:var(--mono);font-size:12px;background:#0C141C;border:1px solid var(--line);border-radius:6px;padding:8px;word-break:break-all}
+#remote{display:none;max-width:560px;margin:0 auto;padding:12px;flex-direction:column;gap:12px}
+#remote.on{display:flex}
+#remote .panel h2{font-size:18px}
+.rstat{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.rstat div{background:#070C12;border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.rstat span{font-size:12px;color:var(--muted);display:block}
+.rstat b{font-family:var(--mono);font-size:28px;font-weight:400}
+.rfnd{font-family:var(--mono);font-size:13px;background:#05090D;border:1px solid var(--line);border-radius:8px;padding:8px;min-height:44px;display:flex;flex-direction:column;gap:2px}
+.rpad{width:min(78vw,300px);height:min(78vw,300px)}
+.rgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.rgrid .btn{padding:14px 10px;font-size:16px}
+.big{padding:16px 10px;font-size:17px}
+#remote input[type=range]{height:36px}
+.rfails{display:grid;grid-template-columns:1fr;gap:6px}
+.rfails .btn{text-align:left;font-weight:500}
+@media (prefers-reduced-motion:reduce){.fnd .msg.blink{animation:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Simulador hidráulico · H145 (BK117 D-3)</h1>
+      <p>Dos sistemas a 103 bar alimentan los actuadores del rotor principal y de cola. Mueve los mandos, acciona los switches y provoca fallas para ver cómo entra y sale el fluido de cada actuador y cómo responden bombas, válvulas e indicaciones.</p>
+    </div>
+    <div class="ctrls">
+      <span class="note">Velocidad de simulación</span>
+      <div class="seg" id="speedSeg" role="group" aria-label="Velocidad de simulación">
+        <button data-s="1" class="on">×1</button><button data-s="5">×5</button><button data-s="20">×20</button>
+      </div>
+      <button class="btn" id="pauseBtn">Pausa</button>
+      <button class="btn" id="resetBtn">Reiniciar</button>
+      <button class="btn on" id="connectBtn">📱 Conectar celular</button>
+      <span class="linkchip"><span class="dot" id="linkDot"></span><span id="linkTxt">Celular sin conectar</span></span>
+    </div>
+  </header>
+
+  <div class="grid-main">
+    <section class="panel" aria-label="Esquema del sistema hidráulico">
+      <h2>Esquema del sistema <small id="clock">t = 0 s</small></h2>
+      <svg id="schem" viewBox="0 0 1000 690" role="img" aria-label="Esquema animado: dos sistemas hidráulicos, tres actuadores del rotor principal y el actuador del rotor de cola"></svg>
+      <div class="legend">
+        <span><i style="background:var(--press)"></i>Alta presión (103 bar)</span>
+        <span><i style="background:var(--ret)"></i>Retorno / baja presión (1.4–1.75 bar)</span>
+        <span><i style="background:var(--dead)"></i>Sin presión</span>
+        <span><i style="background:var(--bypass)"></i>Actuador en bypass</span>
+        <span>Las rayas en movimiento indican caudal; una línea naranja quieta tiene presión pero no caudal.</span>
+      </div>
+    </section>
+
+    <div style="display:flex;flex-direction:column;gap:14px;min-width:0">
+      <section class="panel" aria-label="Indicación de cabina">
+        <h2>Cabina · VMS y FND <small>Helionix</small></h2>
+        <div class="vms">
+          <div class="gauge"><span class="lab">HYD 1</span><svg id="g1" viewBox="0 0 90 170" width="90" height="170" aria-hidden="true"></svg><span class="val" id="v1">103</span><span class="unit">bar</span></div>
+          <div class="gauge"><span class="lab">HYD 2</span><svg id="g2" viewBox="0 0 90 170" width="90" height="170" aria-hidden="true"></svg><span class="val" id="v2">103</span><span class="unit">bar</span></div>
+        </div>
+        <div class="fnd" id="fnd" aria-live="polite"></div>
+        <div class="aural" id="aural">Alerta sonora: <b id="auralTxt">ninguna</b></div>
+      </section>
+
+      <section class="panel" aria-label="Overhead panel">
+        <h2>Overhead · fila HYD</h2>
+        <div class="overhead">
+          <div class="sw"><span class="t">Rotor / motores</span><button class="btn" id="rotorBtn">Parar rotor</button><span class="s" id="rotorTxt">Rotor 100 % · bombas 5429 rpm</span></div>
+          <div class="sw"><span class="t">AUX HYD PUMP</span><button class="btn" id="auxBtn">OFF</button><span class="s" id="auxTxt">Apagada</span></div>
+          <div class="sw"><span class="t">HYD TEST</span>
+            <div class="hold"><button class="btn small" id="t1" aria-label="Mantener prueba SYS 1">SYS 1</button><button class="btn small" id="t2" aria-label="Mantener prueba SYS 2">SYS 2</button></div>
+            <span class="s">Retorno por resorte: mantén pulsado</span></div>
+          <div class="sw"><span class="t">EPU</span><button class="btn" id="epuBtn">Desconectada</button><span class="s">Límite bomba aux: 90 s solo batería · 5 min con EPU</span></div>
+        </div>
+        <button class="btn" id="selfTestBtn">Autoprueba de encendido Helionix</button>
+      </section>
+    </div>
+  </div>
+
+  <div class="grid-low">
+    <section class="panel" aria-label="Mandos del piloto">
+      <h2>Mandos del piloto <small id="autoState">movimiento automático</small></h2>
+      <div class="pad" id="pad" tabindex="0" aria-label="Cíclico: arrastra o usa las flechas">
+        <span class="padlab" style="left:50%;top:2px;transform:translateX(-50%)">adelante</span>
+        <span class="padlab" style="left:50%;bottom:2px;transform:translateX(-50%)">atrás</span>
+        <span class="padlab" style="left:4px;top:50%;transform:translateY(-50%)">izq.</span>
+        <span class="padlab" style="right:4px;top:50%;transform:translateY(-50%)">der.</span>
+        <div class="knob" id="knob"></div>
+      </div>
+      <div class="field"><label for="coll">Colectivo <b id="collV">50 %</b></label><input type="range" id="coll" min="0" max="100" value="50"></div>
+      <div class="field"><label for="ped">Pedales (izq. ← → der.) <b id="pedV">0</b></label><input type="range" id="ped" min="0" max="100" value="50"></div>
+      <div class="row">
+        <button class="btn on" id="autoBtn">Auto ON</button>
+        <button class="btn" id="centerBtn">Centrar</button>
+        <button class="btn" id="gustBtn">Ráfaga de viento</button>
+      </div>
+      <span class="note">Fuerza de mando sentida: <b id="feel">artificial (resortes y fricción de trim)</b></span>
+    </section>
+
+    <section class="panel" aria-label="Detalle del actuador">
+      <h2>Actuador en detalle
+        <span class="seg" id="axSeg" role="group" aria-label="Eje">
+          <button data-a="long">LONG</button><button data-a="coll" class="on">COLL</button><button data-a="lat">LAT</button><button data-a="tail">COLA</button>
+        </span>
+      </h2>
+      <svg id="detail" viewBox="0 0 600 300" role="img" aria-label="Corte del actuador seleccionado: varilla de entrada, spool, cámaras A y B de cada sistema y pistón de refuerzo" style="width:100%;height:auto"></svg>
+      <div class="chips" id="chips"></div>
+      <div class="kv" id="kv"></div>
+      <div class="row"><button class="btn small" id="ovTestBtn">Botón de prueba de override</button><span class="note" id="ovTxt">Solo funciona sin presión hidráulica.</span></div>
+    </section>
+
+    <section class="panel" aria-label="Qué está pasando">
+      <h2>Qué está pasando</h2>
+      <div class="explain" id="explain"></div>
+    </section>
+  </div>
+
+  <div class="grid-low2">
+    <section class="panel" aria-label="Bomba">
+      <h2>Bomba de pistones
+        <span class="seg" id="pSeg" role="group" aria-label="Bomba"><button data-p="0" class="on">Bomba 1</button><button data-p="1">Bomba 2</button></span>
+      </h2>
+      <div class="row" style="align-items:flex-start;flex-wrap:nowrap">
+        <svg id="pumpSvg" viewBox="0 0 220 220" width="200" height="200" aria-label="Barril de 9 pistones girando y ángulo del plato" role="img"></svg>
+        <div class="kv" id="pkv" style="grid-template-columns:1fr;flex:1"></div>
+      </div>
+      <span class="note">Presión constante, caudal variable: el pistón de control reduce el ángulo del plato cuando sube la presión y el resorte lo aumenta cuando hay demanda. Caudal máximo de la bomba en este modelo: valor ilustrativo (el manual no lo da).</span>
+    </section>
+
+    <section class="panel" aria-label="Fallas y escenarios">
+      <h2>Fallas <small>activa una o varias</small></h2>
+      <div class="fails" id="fails"></div>
+      <h2 style="margin-top:4px">Escenarios rápidos</h2>
+      <div class="scen" id="scen"></div>
+    </section>
+
+    <section class="panel" aria-label="Registro de eventos">
+      <h2>Registro de eventos</h2>
+      <div class="log" id="log"></div>
+      <span class="note">Modelo didáctico basado en el Training Manual Pilot, cap. 05 (rev. 4, 2024). Las cifras de presión, fuerza, carrera, velocidad, umbrales y tiempos son las del manual; caudales de bomba, cargas aerodinámicas y constantes de tiempo son aproximaciones para la animación. No sustituye al manual de vuelo ni a la instrucción aprobada.</span>
+    </section>
+  </div>
+</div>
+
+<div class="modal" id="qrModal" role="dialog" aria-modal="true" aria-labelledby="qrTitle">
+  <div class="box">
+    <h2 id="qrTitle" style="font-size:24px">Controlar desde el celular</h2>
+    <ol>
+      <li>Abre la cámara del celular y escanea el código.</li>
+      <li>O abre esta misma página en el celular y escribe el código de abajo.</li>
+      <li>Deja esta pantalla abierta: el punto verde de arriba indica que el celular está conectado. Pueden conectarse varios celulares.</li>
+    </ol>
+    <div id="qr"></div>
+    <p style="margin:0;text-align:center">Código de esta pantalla: <b id="qrCode" style="font-family:var(--mono);font-size:24px;letter-spacing:3px">…</b></p>
+    <div class="urlbox" id="qrUrl">Conectando con el servidor de enlace…</div>
+    <div class="row">
+      <button class="btn" id="copyUrl">Copiar enlace</button>
+      <input id="codeIn" placeholder="Código" maxlength="5" style="width:110px;background:#0C141C;color:var(--text);border:1px solid #33495F;border-radius:7px;padding:7px;font-family:var(--mono);text-transform:uppercase" aria-label="Código de la pantalla a controlar">
+      <button class="btn" id="beRemote">Usar este dispositivo como control</button>
+      <button class="btn" id="closeQr">Cerrar</button>
+    </div>
+    <span class="note" id="qrNote">Para controlar otra pantalla desde este dispositivo, escribe su código y pulsa «Usar este dispositivo como control». Pantalla y celular necesitan internet; el enlace usa WebRTC con el servidor público de PeerJS.</span>
+  </div>
+</div>
+
+<div id="remote" aria-label="Control remoto">
+  <header class="top"><div><h1 style="font-size:26px">Control remoto · H145</h1>
+    <span class="linkchip"><span class="dot" id="rDot"></span><span id="rLink">Buscando la pantalla…</span></span></div>
+    <button class="btn small" id="rExit">Ver simulador aquí</button></header>
+  <section class="panel">
+    <div class="rstat"><div><span>HYD 1</span><b id="rP1">—</b> bar</div><div><span>HYD 2</span><b id="rP2">—</b> bar</div></div>
+    <div class="rfnd" id="rFnd"><span style="color:#4C5E70">sin datos</span></div>
+    <span class="note" id="rExpl"></span>
+  </section>
+  <section class="panel">
+    <h2>Mandos <small id="rAutoTxt"></small></h2>
+    <div class="pad rpad" id="rpad" aria-label="Cíclico"><span class="padlab" style="left:50%;top:2px;transform:translateX(-50%)">adelante</span><span class="padlab" style="left:50%;bottom:2px;transform:translateX(-50%)">atrás</span><span class="padlab" style="left:4px;top:50%;transform:translateY(-50%)">izq.</span><span class="padlab" style="right:4px;top:50%;transform:translateY(-50%)">der.</span><div class="knob" id="rknob" style="width:40px;height:40px;margin:-20px 0 0 -20px"></div></div>
+    <div class="field"><label for="rcoll">Colectivo <b id="rcollV">50 %</b></label><input type="range" id="rcoll" min="0" max="100" value="50"></div>
+    <div class="field"><label for="rped">Pedales (izq. ← → der.) <b id="rpedV">0</b></label><input type="range" id="rped" min="0" max="100" value="50"></div>
+    <div class="rgrid"><button class="btn" id="rCenter">Centrar</button><button class="btn" id="rAuto">Auto</button><button class="btn" id="rGust">Ráfaga</button><button class="btn" id="rPause">Pausa</button></div>
+  </section>
+  <section class="panel">
+    <h2>Overhead</h2>
+    <div class="rgrid">
+      <button class="btn big" id="rRotor">Rotor</button><button class="btn big" id="rAux">AUX HYD PUMP</button>
+      <button class="btn big" id="rT1">HYD TEST SYS 1<br><small>mantener</small></button><button class="btn big" id="rT2">HYD TEST SYS 2<br><small>mantener</small></button>
+      <button class="btn" id="rEpu">EPU</button><button class="btn" id="rSelf">Autoprueba</button>
+    </div>
+  </section>
+  <section class="panel">
+    <h2>Vista en pantalla</h2>
+    <div class="seg" id="rAx" style="align-self:flex-start"><button data-a="long">LONG</button><button data-a="coll">COLL</button><button data-a="lat">LAT</button><button data-a="tail">COLA</button></div>
+    <div class="seg" id="rSpd" style="align-self:flex-start"><button data-s="1">×1</button><button data-s="5">×5</button><button data-s="20">×20</button></div>
+    <div class="rgrid"><button class="btn" id="rOv">Prueba override</button><button class="btn" id="rReset">Reiniciar</button></div>
+  </section>
+  <section class="panel"><h2>Fallas</h2><div class="rfails" id="rFails"></div></section>
+  <section class="panel"><h2>Escenarios</h2><div class="rfails" id="rScen"></div></section>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+
+<script>
+(function(){
+"use strict";
+const $ = id => document.getElementById(id);
+const NS = "http://www.w3.org/2000/svg";
+const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
+const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/* ---------------- model constants (manual) ---------------- */
+const P_OP=103, P_RELIEF=122, P_AUX=85, LOW_ON=69, LOW_OFF=83, LIM_HI=121;
+const AX = {
+  long:{name:"Longitudinal", stroke:64.3, vmax:135, F1:3150, cx:300},
+  coll:{name:"Colectivo",    stroke:64.3, vmax:67,  F1:3150, cx:500},
+  lat: {name:"Lateral",      stroke:35.0, vmax:135, F1:3150, cx:700},
+  tail:{name:"Rotor de cola",stroke:29.66,vmax:40,  F1:5179, cx:500}
+};
+const AREA = k => AX[k].F1/(P_OP*1e5); // m2 per system
+
+const FAILS = [
+  ["pump2","Falla de la bomba 2","El SYS 2 pierde presión; el SYS 1 sigue solo."],
+  ["leak1","Fuga lenta en el SYS 1","Baja el nivel del depósito 1 hasta cortar el suministro al rotor de cola."],
+  ["break2","Rotura de línea en el SYS 2","Caída rápida de presión y de nivel."],
+  ["comp1","Compensador de la bomba 1 bloqueado","La presión sube hasta que abre el alivio de 122 bar."],
+  ["jam","Spool del SYS 1 atascado (eje seleccionado)","El override mecánico pasa ese sistema a bypass."],
+  ["auxcheck","Retención de la bomba auxiliar fallada","Flujo inverso: HYD1 DEGRADED."],
+  ["sens2","Transmisor de presión SYS 2 sin señal","VMS SENSOR a los 20 s; VMS/UMS SIGNAL en la autoprueba."],
+  ["psw1","Switch de presión SYS 1 sin señal","HYD1 PRESS SENSOR en la autoprueba."]
+];
+
+/* ---------------- state ---------------- */
+let S;
+function fresh(){
+  S = {
+    t:0, speed:1, paused:false,
+    rotor:1, rotorTarget:1, epu:false, aux:false, auxT:0, test:0,
+    inp:{long:.5, lat:.5, coll:.5, ped:.5}, auto:true, autoPh:0,
+    gust:0, selAx:"coll", selPump:0, pumpAng:0,
+    fail:{}, jamAxis:"coll",
+    sys:[0,1].map(()=>({ps:P_OP, pd:P_OP, level:.62, low:false, prevPd:P_OP, trendT:0, trend:false, relief:false, q:0, qmax:9, swash:.2, invalidT:0})),
+    traShut:false, degraded:false, selfTest:{signal:false, psw:false},
+    act:{}, ovTest:0, log:[], prevMsgs:new Set(), aural:"", auralT:0
+  };
+  for(const k in AX){
+    const st = AX[k].stroke;
+    S.act[k] = {xin:st/2, xp:st/2, e:0, v:0, load:0, cap:0, n:2, hold:false, manual:false,
+      sys:[{p:P_OP, shut:true, byp:false, ov:false, check:false, q:0},{p:P_OP, shut:true, byp:false, ov:false, check:false, q:0}]};
+  }
+  FAILS.forEach(f=>S.fail[f[0]]=false);
+}
+fresh();
+
+function log(msg){ S.log.push([S.t, msg]); if(S.log.length>120) S.log.shift(); renderLog(); }
+
+/* ---------------- simulation step ---------------- */
+function step(dt){
+  S.t += dt;
+  // rotor spool-up / down (~6 s)
+  S.rotor += clamp(S.rotorTarget - S.rotor, -dt/6, dt/6);
+  if(S.aux) S.auxT += dt; else S.auxT = 0;
+  if(S.gust>0) S.gust = Math.max(0, S.gust - dt);
+  if(S.ovTest>0) S.ovTest = Math.max(0, S.ovTest - dt);
+
+  // automatic pilot movements
+  if(S.auto){
+    S.autoPh += dt;
+    const a=S.autoPh;
+    S.inp.long = .5 + .32*Math.sin(a*.55);
+    S.inp.lat  = .5 + .30*Math.sin(a*.83+1);
+    S.inp.coll = .5 + .28*Math.sin(a*.31+2);
+    S.inp.ped  = .5 + .35*Math.sin(a*.47+.5);
+  }
+  const map = {long:S.inp.long, lat:S.inp.lat, coll:S.inp.coll, tail:S.inp.ped};
+  for(const k in AX) S.act[k].xin = map[k]*AX[k].stroke;
+
+  // ---- per system supply ----
+  for(let i=0;i<2;i++){
+    const s=S.sys[i];
+    const pumpFail = (i===1 && S.fail.pump2);
+    const cav = s.level < .02;
+    let pumpTarget = (!pumpFail && !cav && S.rotor>.05) ? (i===0 && S.fail.comp1 ? 140 : P_OP) : 0;
+    let qmax = 9*S.rotor;              // illustrative L/min at rated speed
+    let auxTarget = 0, auxQ = 0;
+    if(i===0 && S.aux && !cav){ auxTarget = P_AUX; auxQ = 3; }
+    // demand from actuators of this system (previous step) + internal leakage
+    let q = 0;
+    for(const k in AX) q += S.act[k].sys[i].q;
+    q += (s.pd>5 ? .3 : 0);
+    if(i===1 && S.fail.break2) q += 25;
+    s.q = q;
+    let target = 0;
+    if(pumpTarget>0) target = pumpTarget*Math.min(1, qmax/Math.max(q,.01));
+    if(auxTarget>0) target = Math.max(target, auxTarget*Math.min(1, auxQ/Math.max(q,.01)));
+    if(i===1 && S.fail.break2) target = Math.min(target, 4);
+    s.ps += (target - s.ps)*Math.min(1, dt*5);
+    s.relief = s.ps > P_RELIEF-0.2;
+    if(s.ps > P_RELIEF) s.ps = P_RELIEF;
+    s.qmax = pumpTarget>0 ? qmax : (auxTarget>0 ? auxQ : 0);
+    s.swash = pumpTarget>0 ? clamp(q/Math.max(qmax,.01), .06, 1) : 0;
+    // solenoid valve (ground test): test SYS1 energizes solenoid 2 and vice versa
+    const solenoid = (S.test===1 && i===1) || (S.test===2 && i===0);
+    const pdTarget = solenoid ? 0 : s.ps;
+    s.pd += (pdTarget - s.pd)*Math.min(1, dt*8);
+    // fluid level
+    if(i===0 && S.fail.leak1) s.level = Math.max(0, s.level - .011*dt);
+    if(i===1 && S.fail.break2) s.level = Math.max(0, s.level - .05*dt);
+    // low press switch with hysteresis 69/83
+    if(!s.low && s.pd < LOW_ON) s.low = true;
+    if(s.low && s.pd > LOW_OFF) s.low = false;
+    // trend
+    const dp = (s.pd - s.prevPd)/Math.max(dt,1e-3); s.prevPd = s.pd;
+    if(dp < -10 && s.pd > LOW_ON) s.trendT = 4;
+    s.trendT = Math.max(0, s.trendT - dt); s.trend = s.trendT>0;
+    // sensor invalid
+    if(i===1 && S.fail.sens2) s.invalidT += dt; else s.invalidT = 0;
+  }
+  // TRA shut-off valve (SYS 1) driven by reservoir low pressure piston
+  const prevTra = S.traShut;
+  if(!S.traShut && S.sys[0].level < .20) S.traShut = true;
+  if(S.traShut && S.sys[0].level > .23) S.traShut = false;
+  if(S.traShut && !prevTra) log("Nivel SYS 1 bajo 0.20 l: la válvula piloto cierra la shut-off TRA");
+  // aux check valve failure -> reverse flow detected
+  if(S.fail.auxcheck && !S.aux && S.sys[0].ps > 50 && !S.degraded){ S.degraded = true; log("Flujo inverso por la bomba auxiliar: retención fallada"); }
+  if(!S.fail.auxcheck) S.degraded = false;
+
+  // ---- actuators ----
+  const gustLoad = S.gust>0 ? 7200*Math.sin(Math.PI*S.gust/1.8) : 0;
+  for(const k in AX){
+    const A=S.act[k], ax=AX[k];
+    let nAct=0, cap=0;
+    for(let i=0;i<2;i++){
+      const sv=A.sys[i];
+      let p = S.sys[i].pd;
+      if(k==="tail" && i===0 && S.traShut) p = 0;
+      sv.p = p;
+      // jammed spool + override -> control line to return -> bypass mode
+      sv.ov = (S.fail.jam && i===0 && S.jamAxis===k && Math.abs(A.xin-A.xp)>0.2) || (sv.ov && S.fail.jam && i===0 && S.jamAxis===k);
+      if(!(S.fail.jam && S.jamAxis===k)) sv.ov=false;
+      const ctl = sv.ov ? 0 : p;
+      // bypass valve closes first (~20 bar), shut-off opens with higher pressure (~50 bar)
+      sv.byp = ctl < 20;
+      sv.shut = ctl < 50;   // true = shut-off CLOSED
+      if(!sv.shut && !sv.byp){ nAct++; cap += ax.F1*Math.min(p,P_OP)/P_OP; }
+    }
+    A.n=nAct; A.cap=cap;
+    // aerodynamic reset load (illustrative)
+    let base = k==="coll" ? 900+1500*S.inp.coll : k==="tail" ? 900+1400*Math.abs(S.inp.ped-.5)*2 : 600+1300*Math.abs(map[k]-.5)*2;
+    if(k!=="tail") base += gustLoad;
+    A.load = base;
+    const err = A.xin - A.xp;
+    A.e = clamp(err/1.5, -1, 1);        // spool opening (full open at 1.5 mm error: lever reaches eyebolt stop)
+    A.manual=false; A.hold=false;
+    let v;
+    if(nAct>0){
+      if(A.load > cap){ v = 0; A.hold = true; }      // check valves close: piston keeps position
+      else v = A.e*ax.vmax;
+    } else {
+      // no boost: piston follows the pilot input mechanically (both systems in bypass)
+      v = clamp(err*12, -250, 250); A.manual = true;
+    }
+    A.v = v;
+    A.xp = clamp(A.xp + v*dt, 0, ax.stroke);
+    for(let i=0;i<2;i++){
+      const sv=A.sys[i];
+      sv.check = A.hold && !sv.shut && !sv.byp;
+      sv.q = (!sv.shut && !sv.byp) ? AREA(k)*Math.abs(v)/1000*60000 : 0; // L/min
+    }
+  }
+}
+
+/* ---------------- messages ---------------- */
+function messages(){
+  const m=[]; // [left, center, right, cls, aural]
+  const s1=S.sys[0], s2=S.sys[1];
+  if(s1.low && !(S.fail.psw1 && S.selfTest.psw)) m.push(["HYD1","LOW PRESS","","caution","tono"]);
+  if(s2.low) m.push(["","LOW PRESS","HYD2","caution","tono"]);
+  if(s1.low && s2.low){ m.length=0; m.push(["HYD1","LOW PRESS","HYD2","caution","tono"]); }
+  if(s1.pd>LIM_HI || s2.pd>LIM_HI) m.push(["","HYD OVERLIMIT","","caution","audio"]);
+  if(S.traShut) m.push(["HYD1","TR SHUT OFF","","caution","audio"]);
+  const auxLimit = S.epu ? 300 : 90;
+  if(S.aux && (S.rotor>.08 || S.auxT>auxLimit)) m.push(["HYD1","AUX PUMP ON","","caution","audio"]);
+  if(s1.trend || s2.trend) m.push(["","HYD TREND","","advisory",""]);
+  if(S.degraded) m.push(["HYD1","DEGRADED","","advisory",""]);
+  if(S.selfTest.signal && S.fail.sens2) m.push(["","VMS/UMS SIGNAL","","advisory",""]);
+  if(S.fail.sens2 && s2.invalidT>20) m.push(["","VMS SENSOR","","advisory",""]);
+  if(S.selfTest.psw && S.fail.psw1) m.push(["HYD1","PRESS SENSOR","","advisory",""]);
+  if(S.aux) m.push(["HYD1","AUX PUMP","","info",""]);
+  return m;
+}
+
+/* ---------------- schematic build ---------------- */
+const svg = $("schem");
+function el(tag, attrs, parent){ const e=document.createElementNS(NS,tag); for(const a in attrs) e.setAttribute(a,attrs[a]); (parent||svg).appendChild(e); return e; }
+function txt(x,y,s,attrs,parent){ const t=el("text",Object.assign({x,y,fill:"#9FB1C4","font-size":13},attrs||{}),parent); t.textContent=s; return t; }
+
+const LINES = {}; // id -> {path, dash, kind, offset}
+function line(id, d, kind){
+  el("path",{d, fill:"none", stroke:"#0A1017", "stroke-width":9, "stroke-linejoin":"round"});
+  const base = el("path",{d, fill:"none", stroke:"#36475A", "stroke-width":4, "stroke-linejoin":"round"});
+  const dash = el("path",{d, fill:"none", stroke:"#fff", "stroke-width":4, "stroke-dasharray":"7 11", "stroke-linejoin":"round", opacity:0});
+  LINES[id] = {base, dash, kind, off:0};
+}
+
+function buildSchematic(){
+  svg.innerHTML="";
+  // mixing lever / swashplate bar
+  el("rect",{x:230,y:150,width:540,height:22,rx:5,fill:"#1A2735",stroke:"#33495F"});
+  txt(500,166,"Mixing lever → plato oscilante → 5 palas",{"text-anchor":"middle",fill:"#C9D6E3","font-size":13});
+
+  // lines first (under components)
+  // SYS 1 main rotor manifold
+  line("P1", "M100 430 V372 H655", "p");
+  line("R1", "M675 388 H120 V430", "r");
+  line("P2", "M900 430 V404 H325", "p");
+  line("R2", "M745 418 H880 V430", "r");
+  for(const k of ["long","coll","lat"]){
+    const cx=AX[k].cx;
+    line("P1"+k, `M${cx-45} 372 V330`, "p");
+    line("R1"+k, `M${cx-25} 330 V388`, "r");
+    line("P2"+k, `M${cx+25} 404 V330`, "p");
+    line("R2"+k, `M${cx+45} 330 V418`, "r");
+  }
+  // tail rotor supply
+  line("P1t", "M40 470 H20 V60 H420", "p");
+  line("R1t", "M420 86 H34 V500 H40", "r");
+  line("P2t", "M960 470 H980 V60 H580", "p");
+  line("R2t", "M580 86 H966 V500 H960", "r");
+  // pump suction / outlet
+  line("S1", "M200 580 V640 H164", "r");
+  line("O1", "M140 616 V580", "p");
+  line("SA", "M48 580 V627", "r");
+  line("OA", "M66 645 H90 V580", "p");
+  line("S2", "M800 580 V640 H836", "r");
+  line("O2", "M860 616 V580", "p");
+
+  // actuators
+  for(const k of ["long","coll","lat","tail"]){
+    const cx=AX[k].cx, y0 = k==="tail" ? 30 : 200, h = k==="tail"? 100 : 130;
+    const g=el("g",{id:"act-"+k});
+    el("rect",{x:cx-80,y:y0,width:160,height:h,rx:8,fill:"#111C28",stroke:"#3A5068","stroke-width":1.5},g);
+    txt(cx, y0+18, k==="tail" ? "Actuador rotor de cola" : AX[k].name.toUpperCase(), {"text-anchor":"middle",fill:"#DDE7F1","font-size":14,"font-weight":600},g);
+    const cy1 = y0 + (k==="tail"?34:42), cy2 = y0 + (k==="tail"?62:80);
+    for(const [i,cy] of [[0,cy1],[1,cy2]]){
+      el("rect",{x:cx-62,y:cy,width:124,height:20,rx:3,fill:"#1D2A38",stroke:"#4A6178",id:`cyl-${k}-${i}`},g);
+      el("rect",{x:cx-62,y:cy+1,width:60,height:18,fill:"#36475A",id:`chA-${k}-${i}`},g);
+      el("rect",{x:cx,y:cy+1,width:60,height:18,fill:"#36475A",id:`chB-${k}-${i}`},g);
+      el("rect",{x:cx-4,y:cy-2,width:8,height:24,rx:2,fill:"#DDE7F1",id:`pis-${k}-${i}`},g);
+      txt(cx-74, cy+15, "S"+(i+1), {"text-anchor":"end",fill:"#8FA2B6","font-size":11},g);
+    }
+    el("line",{x1:cx,y1:cy1-6,x2:cx,y2:cy2+26,stroke:"#DDE7F1","stroke-width":2,id:`rod-${k}`},g);
+    const st = txt(cx, y0+h-8, "", {"text-anchor":"middle",fill:"#8FA2B6","font-size":12,id:`st-${k}`},g);
+    if(k!=="tail") el("line",{x1:cx,y1:y0,x2:cx,y2:172,stroke:"#5E7C9A","stroke-width":3,"stroke-dasharray":"4 3"});
+    g.style.cursor="pointer";
+    g.addEventListener("click",()=>selectAxis(k));
+  }
+  txt(500,146,"",{});
+
+  // TRA shut-off valve symbol on SYS1 tail line
+  const tv=el("g",{id:"traValve"});
+  el("rect",{x:8,y:250,width:24,height:30,rx:4,fill:"#111C28",stroke:"#8FA2B6"},tv);
+  el("line",{x1:20,y1:254,x2:20,y2:276,stroke:"#5CC58A","stroke-width":3,id:"traBar"},tv);
+  txt(40,262,"Shut-off TRA",{"font-size":12},tv);
+  txt(40,277,"(solo SYS 1)",{"font-size":11,fill:"#6F8296"},tv);
+
+  // systems: block + reservoir
+  const sysDef=[{bx:40,rx:170,label:"SYSTEM 1",pump:[140,640],aux:true},{bx:830,rx:720,label:"SYSTEM 2",pump:[860,640]}];
+  sysDef.forEach((d,i)=>{
+    const g=el("g",{});
+    // valve block
+    el("rect",{x:d.bx,y:430,width:130,height:150,rx:8,fill:"#141F2B",stroke:"#3A5068","stroke-width":1.5},g);
+    txt(d.bx+65,450,"Bloque de válvulas",{"text-anchor":"middle",fill:"#DDE7F1","font-size":13,"font-weight":600},g);
+    const items=["Antirretorno","Filtro","Alivio 122 bar","Solenoide","Shut-off","Switch / transd."];
+    items.forEach((s,j)=>{
+      el("circle",{cx:d.bx+14,cy:470+j*18,r:4,fill:"#5CC58A",id:`vb${i}-${j}`},g);
+      txt(d.bx+24,474+j*18,s,{"font-size":12},g);
+    });
+    // reservoir
+    el("rect",{x:d.rx,y:430,width:110,height:150,rx:8,fill:"#0E1822",stroke:"#3A5068","stroke-width":1.5},g);
+    el("rect",{x:d.rx+6,y:470,width:98,height:104,fill:"#4FA3E0",opacity:.85,id:`lvl${i}`},g);
+    txt(d.rx+55,450,"Depósito",{"text-anchor":"middle",fill:"#DDE7F1","font-size":13,"font-weight":600},g);
+    txt(d.rx+55,465,"",{"text-anchor":"middle","font-size":12,id:`lvlT${i}`,fill:"#DDE7F1"},g);
+    // min/max marks
+    for(const [v,lab] of [[.8,"MAX"],[.2,"MIN"]]){
+      const y=574-v/0.8*104;
+      el("line",{x1:d.rx+2,y1:y,x2:d.rx+108,y2:y,stroke:"#F2B33D","stroke-dasharray":"3 3"},g);
+      txt(i===0? d.rx+106 : d.rx+4, y-3, lab, {"text-anchor":i===0?"end":"start",fill:"#F2B33D","font-size":10},g);
+    }
+    txt(d.rx+55, 424, d.label, {"text-anchor":"middle",fill:"#F08A3C","font-size":14,"font-weight":700},g);
+    // pump
+    const [px,py]=d.pump;
+    el("circle",{cx:px,cy:py,r:24,fill:"#111C28",stroke:"#F08A3C","stroke-width":2,id:`pump${i}`},g);
+    const rot=el("g",{id:`pumpRot${i}`,transform:`translate(${px} ${py})`},g);
+    for(let j=0;j<3;j++) el("line",{x1:0,y1:0,x2:16*Math.cos(j*2.094),y2:16*Math.sin(j*2.094),stroke:"#F08A3C","stroke-width":3,"stroke-linecap":"round"},rot);
+    txt(px, py+40, "Bomba "+(i+1), {"text-anchor":"middle",fill:"#DDE7F1","font-size":12},g);
+    if(d.aux){
+      el("circle",{cx:48,cy:645,r:18,fill:"#111C28",stroke:"#5E7C9A","stroke-width":2,id:"auxPump"},g);
+      const r2=el("g",{id:"auxRot",transform:"translate(48 645)"},g);
+      for(let j=0;j<2;j++) el("line",{x1:-11*Math.cos(j*1.57),y1:-11*Math.sin(j*1.57),x2:11*Math.cos(j*1.57),y2:11*Math.sin(j*1.57),stroke:"#5E7C9A","stroke-width":3},r2);
+      txt(48,681,"Bomba aux.",{"text-anchor":"middle",fill:"#DDE7F1","font-size":12},g);
+    }
+  });
+}
+
+function selectAxis(k){
+  S.selAx=k;
+  document.querySelectorAll("#axSeg button").forEach(b=>b.classList.toggle("on", b.dataset.a===k));
+  if(S.fail.jam && S.jamAxis!==k){ /* keep jam on its axis */ }
+  buildDetail();
+}
+
+/* ---------------- detail svg ---------------- */
+const det=$("detail");
+function dEl(tag,attrs,parent){ const e=document.createElementNS(NS,tag); for(const a in attrs) e.setAttribute(a,attrs[a]); (parent||det).appendChild(e); return e; }
+function dTxt(x,y,s,attrs){ const t=dEl("text",Object.assign({x,y,fill:"#9FB1C4","font-size":13},attrs||{})); t.textContent=s; return t; }
+function buildDetail(){
+  det.innerHTML="";
+  // input rod
+  dTxt(20,24,"Varilla de entrada (piloto)",{fill:"#C9D6E3"});
+  dEl("line",{x1:20,y1:38,x2:560,y2:38,stroke:"#24364A","stroke-width":2});
+  dEl("rect",{x:0,y:30,width:14,height:16,rx:3,fill:"#F08A3C",id:"dIn"});
+  dEl("line",{x1:0,y1:38,x2:0,y2:250,stroke:"#8FA2B6","stroke-width":3,id:"dLever"});
+  // spool housing
+  dTxt(20,70,"Control spool",{fill:"#C9D6E3"});
+  dEl("rect",{x:150,y:56,width:300,height:44,rx:6,fill:"#0E1822",stroke:"#4A6178"});
+  dTxt(300,52,"P",{"text-anchor":"middle",fill:"#F08A3C","font-weight":700});
+  dTxt(190,52,"R",{"text-anchor":"middle",fill:"#4FA3E0","font-weight":700});
+  dTxt(410,52,"R",{"text-anchor":"middle",fill:"#4FA3E0","font-weight":700});
+  dEl("rect",{x:160,y:66,width:280,height:24,fill:"#1D2A38"});
+  const sp=dEl("g",{id:"dSpool"});
+  for(const x of [200,290,380]) dEl("rect",{x:x-14,y:62,width:28,height:32,rx:3,fill:"#C9D6E3"},sp);
+  dEl("line",{x1:170,y1:78,x2:430,y2:78,stroke:"#C9D6E3","stroke-width":4},sp);
+  dTxt(300,118,"",{"text-anchor":"middle",id:"dSpoolT","font-size":12});
+  // cylinders
+  for(let i=0;i<2;i++){
+    const y = 140 + i*70;
+    dTxt(20,y+24,"SYS "+(i+1),{fill:"#F08A3C","font-weight":700});
+    dEl("rect",{x:80,y:y,width:420,height:40,rx:6,fill:"#1D2A38",stroke:"#4A6178"});
+    dEl("rect",{x:82,y:y+2,width:200,height:36,fill:"#36475A",id:`dA${i}`});
+    dEl("rect",{x:290,y:y+2,width:208,height:36,fill:"#36475A",id:`dB${i}`});
+    dEl("rect",{x:280,y:y-4,width:14,height:48,rx:3,fill:"#DDE7F1",id:`dP${i}`});
+    dTxt(92,y+25,"A",{fill:"#0A1017","font-weight":700,id:`dAt${i}`});
+    dTxt(488,y+25,"B",{fill:"#0A1017","font-weight":700,"text-anchor":"end",id:`dBt${i}`});
+    dTxt(510,y+16,"",{"font-size":12,id:`dS${i}`});
+    dTxt(510,y+32,"",{"font-size":12,id:`dS2${i}`});
+  }
+  dEl("line",{x1:60,y1:200,x2:520,y2:200,stroke:"#DDE7F1","stroke-width":5,id:"dRod",opacity:0});
+  dEl("line",{x1:287,y1:120,x2:287,y2:280,stroke:"#DDE7F1","stroke-width":5,id:"dRodV"});
+  dTxt(287,296,"Salida al mixing lever",{"text-anchor":"middle",id:"dOutT","font-size":12});
+}
+
+/* ---------------- pump svg ---------------- */
+const psvg=$("pumpSvg");
+function buildPump(){
+  psvg.innerHTML="";
+  const c=(t,a,p)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);(p||psvg).appendChild(e);return e;};
+  c("circle",{cx:110,cy:110,r:92,fill:"#0E1822",stroke:"#3A5068","stroke-width":2});
+  // port plate kidneys
+  c("path",{d:"M110 32 A78 78 0 0 1 110 188",fill:"none",stroke:"#F08A3C","stroke-width":14,opacity:.25,id:"kidP"});
+  c("path",{d:"M110 188 A78 78 0 0 1 110 32",fill:"none",stroke:"#4FA3E0","stroke-width":14,opacity:.25,id:"kidR"});
+  const g=c("g",{id:"barrel"});
+  for(let j=0;j<9;j++){
+    const a=j*2*Math.PI/9;
+    c("circle",{cx:110+60*Math.cos(a),cy:110+60*Math.sin(a),r:13,fill:"#1D2A38",stroke:"#8FA2B6",id:"pp"+j},g);
+  }
+  c("circle",{cx:110,cy:110,r:16,fill:"#24364A",stroke:"#8FA2B6"});
+  const t=c("text",{x:110,y:206,"text-anchor":"middle",fill:"#8FA2B6","font-size":11}); t.textContent="salida (naranja) · entrada (azul)";
+}
+
+/* ---------------- render ---------------- */
+const COL={p:"#F08A3C", r:"#4FA3E0", dead:"#36475A", by:"#A493E0", trap:"#C0652B"};
+function setLine(id, pressurized, flow, dt){
+  const L=LINES[id]; if(!L) return;
+  const c = pressurized ? (L.kind==="p"?COL.p:COL.r) : COL.dead;
+  L.base.setAttribute("stroke", c);
+  if(flow>0.02 && pressurized && !reduce){
+    L.off -= (18 + flow*22)*dt*(L.kind==="p"?1:1);
+    L.dash.setAttribute("stroke-dashoffset", L.off.toFixed(1));
+    L.dash.setAttribute("opacity", Math.min(.9,.35+flow*.15).toFixed(2));
+    L.dash.setAttribute("stroke", L.kind==="p" ? "#FFE1C7" : "#D5ECFF");
+  } else L.dash.setAttribute("opacity",0);
+}
+
+function render(dtv){
+  const s1=S.sys[0], s2=S.sys[1];
+  $("clock").textContent = "t = " + S.t.toFixed(0) + " s";
+  // lines
+  const sysP = i => S.sys[i].ps > 10;              // pump side pressure
+  const sysD = i => S.sys[i].pd > 10;              // delivered (after solenoid shut-off)
+  const ret = i => S.sys[i].ps > 1 || S.sys[i].level>0.02;
+  for(let i=0;i<2;i++){
+    const n=i+1;
+    let qm=0, qr=0;
+    for(const k of ["long","coll","lat"]) qm += S.act[k].sys[i].q;
+    setLine("P"+n, sysD(i), qm, dtv);
+    setLine("R"+n, ret(i), qm, dtv);
+    for(const k of ["long","coll","lat"]){
+      const sv=S.act[k].sys[i];
+      const act = !sv.shut && !sv.byp;
+      setLine("P"+n+k, sysD(i) && !sv.ov, sv.q, dtv);
+      setLine("R"+n+k, ret(i), sv.q, dtv);
+    }
+    const tsv=S.act.tail.sys[i];
+    setLine("P"+n+"t", i===0 ? (sysD(0)) : sysD(1), tsv.q, dtv);
+    setLine("R"+n+"t", ret(i), tsv.q, dtv);
+    const pumpQ = S.sys[i].q;
+    setLine(i===0?"O1":"O2", S.sys[i].ps>10 && S.rotor>.05, pumpQ, dtv);
+    setLine(i===0?"S1":"S2", ret(i), (S.rotor>.05 && S.sys[i].ps>10)? pumpQ:0, dtv);
+  }
+  setLine("OA", S.aux && s1.ps>10, S.aux?2:0, dtv);
+  setLine("SA", S.aux, S.aux?2:0, dtv);
+  // TRA valve
+  $("traBar").setAttribute("stroke", S.traShut ? "#F26B5B" : "#5CC58A");
+  $("traBar").setAttribute("transform", S.traShut ? "rotate(90 20 265)" : "");
+  // pumps rotate
+  S.pumpAng += S.rotor*dtv*420;
+  for(let i=0;i<2;i++){
+    const on = S.rotor>.05 && !(i===1 && S.fail.pump2);
+    const r=$("pumpRot"+i); const [px,py]= i===0?[140,640]:[860,640];
+    r.setAttribute("transform",`translate(${px} ${py}) rotate(${reduce?0:(S.pumpAng%360).toFixed(1)})`);
+    $("pump"+i).setAttribute("stroke", on && S.sys[i].level>.02 ? "#F08A3C" : "#F26B5B");
+    // reservoir level
+    const lv=S.sys[i].level, h=104*clamp(lv/.8,0,1);
+    const L=$("lvl"+i); L.setAttribute("y", 574-h); L.setAttribute("height", h);
+    $("lvlT"+i).textContent = lv.toFixed(2)+" l";
+    // valve block lamps
+    const solenoid = (S.test===1 && i===1) || (S.test===2 && i===0);
+    const lamps=[true, true, !S.sys[i].relief, !solenoid, !solenoid && S.sys[i].ps>50, !S.sys[i].low];
+    lamps.forEach((ok,j)=>$(`vb${i}-${j}`).setAttribute("fill", ok?"#5CC58A":"#F2B33D"));
+  }
+  if($("auxRot")) $("auxRot").setAttribute("transform", `translate(48 645) rotate(${S.aux&&!reduce?(S.t*900%360).toFixed(1):0})`);
+  $("auxPump").setAttribute("stroke", S.aux ? "#F08A3C" : "#5E7C9A");
+  // actuators
+  for(const k in AX){
+    const A=S.act[k], ax=AX[k], cx=ax.cx;
+    const frac = A.xp/ax.stroke;
+    const px = cx - 56 + frac*112;
+    for(let i=0;i<2;i++){
+      const sv=A.sys[i];
+      const [ca,cb] = chamberColors(A, sv);
+      const a=$(`chA-${k}-${i}`), b=$(`chB-${k}-${i}`), p=$(`pis-${k}-${i}`);
+      a.setAttribute("width", Math.max(1,px-(cx-61))); a.setAttribute("fill",ca);
+      b.setAttribute("x", px); b.setAttribute("width", Math.max(1,(cx+61)-px)); b.setAttribute("fill",cb);
+      p.setAttribute("x", px-4);
+    }
+    $(`rod-${k}`).setAttribute("x1",px); $(`rod-${k}`).setAttribute("x2",px);
+    $(`st-${k}`).textContent = A.manual ? "SIN REFUERZO" : A.hold ? "CHECK VALVE: posición retenida" :
+      (A.n===1 ? "1 sistema · 50 % fuerza" : A.n===2 ? `${A.xp.toFixed(1)} mm · 2 sistemas` : "");
+    $(`st-${k}`).setAttribute("fill", A.manual||A.hold ? "#F2B33D" : A.n===1 ? "#F2B33D" : "#8FA2B6");
+  }
+  renderCockpit();
+  renderDetail();
+  renderPump();
+}
+
+function chamberColors(A, sv){
+  if(sv.byp || sv.shut) return sv.p<5 && !sv.ov ? [COL.dead,COL.dead] : [COL.by,COL.by];
+  if(A.hold) return [COL.trap, COL.trap];
+  if(A.e > .03) return [COL.p, COL.r];   // input ahead to the right: pressure in A pushes the piston toward it
+  if(A.e < -.03) return [COL.r, COL.p];
+  return [COL.trap, COL.trap];
+}
+
+/* gauges */
+function gauge(id, p, invalid){
+  const g=$(id); g.innerHTML="";
+  const c=(t,a)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);g.appendChild(e);return e;};
+  const y=v=>160 - clamp(v,0,140)/140*150;
+  c("rect",{x:30,y:10,width:22,height:150,fill:"#0E1822",stroke:"#3A5068"});
+  c("rect",{x:30,y:y(69),width:22,height:y(0)-y(69),fill:"none",stroke:"#F2B33D","stroke-width":1.5});
+  c("rect",{x:30,y:y(140),width:22,height:y(121)-y(140),fill:"none",stroke:"#F2B33D","stroke-width":1.5});
+  if(invalid){ c("rect",{x:31,y:11,width:20,height:148,fill:"#F2B33D",opacity:.35}); return; }
+  const amber = p<LOW_ON || p>LIM_HI;
+  const top = y(p);
+  if(amber && p<LOW_ON) c("rect",{x:31,y:y(69),width:20,height:y(0)-y(69),fill:"#F2B33D",opacity:.9});
+  if(amber && p>LIM_HI) c("rect",{x:31,y:y(140),width:20,height:y(121)-y(140),fill:"#F2B33D",opacity:.9});
+  c("rect",{x:34,y:top,width:14,height:160-top,fill:amber?"#F2B33D":"#DDE7F1",opacity:.85});
+  c("path",{d:`M56 ${top} l12 -7 v14 z`,fill:amber?"#F2B33D":"#DDE7F1"});
+  for(const v of [0,69,103,121,140]){
+    const t=c("text",{x:26,y:y(v)+4,"text-anchor":"end",fill:"#6F8296","font-size":10}); t.textContent=v;
+  }
+}
+function renderCockpit(){
+  const s1=S.sys[0], s2=S.sys[1];
+  const inv2 = S.fail.sens2 && (S.selfTest.signal || s2.invalidT>20);
+  gauge("g1", s1.pd, false); gauge("g2", s2.pd, inv2);
+  const v1=$("v1"), v2=$("v2");
+  v1.textContent = s1.pd.toFixed(0); v1.style.color = (s1.pd<LOW_ON||s1.pd>LIM_HI) ? "#F2B33D" : (s1.trend?"#FFFFFF":"#DDE7F1");
+  v2.textContent = inv2 ? "***" : s2.pd.toFixed(0); v2.style.color = inv2 || s2.pd<LOW_ON || s2.pd>LIM_HI ? "#F2B33D" : "#DDE7F1";
+  const m=messages();
+  const keys=new Set(m.map(x=>x.join("|")));
+  let newAural="";
+  m.forEach(x=>{ if(!S.prevMsgs.has(x.join("|"))){ log(`FND: ${[x[0],x[1],x[2]].filter(Boolean).join(" ")} (${x[3]==="caution"?"caution":x[3]==="advisory"?"advisory":"información"})`); if(x[4]) newAural = x[4]==="tono" ? "tono de alerta" : "alerta sonora"; } });
+  if(newAural){ S.aural=newAural; S.auralT=3; }
+  S.prevMsgs=keys;
+  const f=$("fnd");
+  f.innerHTML = m.length ? m.map(x=>`<div class="msg ${x[3]} ${x[3]==='caution'?'blink':''}"><span>${x[0]}</span><span class="c">${x[1]}</span><span style="text-align:right">${x[2]}</span></div>`).join("") : `<div class="msg none"><span></span><span class="c">sin mensajes hidráulicos</span><span></span></div>`;
+  S.auralT=Math.max(0,S.auralT-0.016*S.speed);
+  $("auralTxt").textContent = S.auralT>0 ? S.aural : "ninguna";
+  // overhead texts
+  $("rotorBtn").textContent = S.rotorTarget>0 ? "Parar rotor" : "Arrancar rotor";
+  $("rotorTxt").textContent = `Rotor ${(S.rotor*100).toFixed(0)} % · bombas ${(S.rotor*5429).toFixed(0)} rpm`;
+  $("auxBtn").textContent = S.aux ? "ON" : "OFF"; $("auxBtn").classList.toggle("on",S.aux);
+  const lim=S.epu?300:90;
+  $("auxTxt").textContent = S.aux ? `Encendida ${S.auxT.toFixed(0)} s / límite ${lim} s · ≈85 bar` : "Apagada";
+  $("epuBtn").textContent = S.epu ? "Conectada" : "Desconectada"; $("epuBtn").classList.toggle("on",S.epu);
+  // feel
+  const A=S.act[S.selAx];
+  let feel="artificial (resortes y fricción de trim)";
+  if(S.fail.jam && S.act[S.jamAxis].sys[0].ov) feel = `aumentada y asimétrica en ${AX[S.jamAxis].name.toLowerCase()} (spool atascado)`;
+  if(Object.values(S.act).some(a=>a.manual)) feel = "fuerzas de reacción directas en los ejes sin refuerzo";
+  $("feel").textContent=feel;
+}
+
+function renderDetail(){
+  const k=S.selAx, A=S.act[k], ax=AX[k];
+  const fin=A.xin/ax.stroke, fp=A.xp/ax.stroke;
+  const xin = 90 + fin*400, xpp = 90 + fp*400;
+  $("dIn").setAttribute("x", xin-7);
+  const lev=$("dLever"); lev.setAttribute("x1",xin); lev.setAttribute("x2",xpp); lev.setAttribute("y2",250);
+  // spool shift
+  $("dSpool").setAttribute("transform",`translate(${(-A.e*18).toFixed(1)} 0)`);
+  $("dSpoolT").textContent = A.manual ? "Sin presión: spool sin efecto, bypass abierto" :
+    Math.abs(A.e)<.03 ? "Neutro: P y R cerrados → pistón bloqueado hidráulicamente" :
+    `Abierto ${Math.round(Math.abs(A.e)*100)} % → presión a cámara ${A.e>0?"A":"B"}, cámara ${A.e>0?"B":"A"} a retorno`;
+  for(let i=0;i<2;i++){
+    const sv=A.sys[i];
+    const [ca,cb]=chamberColors(A,sv);
+    const y=140+i*70;
+    const px = 82 + fp*402;
+    $(`dA${i}`).setAttribute("width", Math.max(1,px-82)); $(`dA${i}`).setAttribute("fill",ca);
+    $(`dB${i}`).setAttribute("x", px+14); $(`dB${i}`).setAttribute("width", Math.max(1,498-(px+14))); $(`dB${i}`).setAttribute("fill",cb);
+    $(`dP${i}`).setAttribute("x", px);
+    $(`dAt${i}`).setAttribute("x", 88); $(`dBt${i}`).setAttribute("x", 494);
+    $(`dS${i}`).textContent = "";
+    $(`dS2${i}`).textContent = "";
+  }
+  $("dRodV").setAttribute("x1", 82+fp*402+7); $("dRodV").setAttribute("x2", 82+fp*402+7);
+  $("dOutT").setAttribute("x", 82+fp*402+7);
+  // chips
+  const ch=[];
+  for(let i=0;i<2;i++){
+    const sv=A.sys[i], n=i+1;
+    if(sv.ov) ch.push([`SYS ${n}: override activado → modo bypass`,"by"]);
+    else if(sv.byp) ch.push([`SYS ${n}: bypass ABIERTO · shut-off cerrada`, sv.p<5?"bad":"by"]);
+    else if(sv.shut) ch.push([`SYS ${n}: bypass cerrado · shut-off cerrada`,"warn"]);
+    else ch.push([`SYS ${n}: shut-off ABIERTA · bypass cerrado`,"ok"]);
+    if(sv.check) ch.push([`SYS ${n}: check valve CERRADA`,"warn"]);
+  }
+  if(k==="tail" && S.traShut) ch.push(["Shut-off TRA cerrada (nivel SYS 1)","bad"]);
+  if(A.manual) ch.push(["Sin refuerzo hidráulico","bad"]);
+  $("chips").innerHTML = ch.map(c=>`<span class="chip ${c[1]}">${c[0]}</span>`).join("");
+  const q = A.sys[0].q + A.sys[1].q;
+  const kv=[["Entrada",A.xin.toFixed(1)+" mm"],["Salida (pistón)",A.xp.toFixed(1)+" mm"],["Carrera",ax.stroke+" mm"],
+    ["Velocidad",Math.abs(A.v).toFixed(0)+" mm/s"],["Vel. nominal",ax.vmax+" mm/s"],["Caudal",q.toFixed(2)+" L/min"],
+    ["Carga del rotor",A.load.toFixed(0)+" N"],["Fuerza disponible",A.cap.toFixed(0)+" N"],["Sistemas activos",A.n+" de 2"]];
+  $("kv").innerHTML = kv.map(x=>`<div><span>${x[0]}</span><b>${x[1]}</b></div>`).join("");
+  const anyP = S.sys[0].pd>5 || S.sys[1].pd>5;
+  $("ovTxt").textContent = S.ovTest>0 ? (anyP ? "Sin efecto: el sistema tiene presión. Haz la prueba con el rotor parado y sin bomba auxiliar." :
+    (S.fail.jam && S.jamAxis===k ? "Se cierra la holgura pero la camisa no se mueve: camisa bloqueada o spool atascado." :
+     "Holgura cerrada → la camisa del spool se desplaza contra el resorte: movimiento libre verificado."))
+    : (k==="tail" ? "En el rotor de cola la prueba usa conector y caja de prueba (micro switch)." : "Dos botones por eje. Solo funciona sin presión hidráulica.");
+}
+
+function renderPump(){
+  const i=S.selPump, s=S.sys[i];
+  const on = S.rotor>.05 && !(i===1 && S.fail.pump2) && s.level>.02;
+  const b=$("barrel");
+  if(b) b.setAttribute("transform",`rotate(${reduce?0:(S.pumpAng*0.35%360).toFixed(1)} 110 110)`);
+  for(let j=0;j<9;j++){
+    const p=$("pp"+j);
+    const a=(j*40 + S.pumpAng*0.35)%360;
+    const inOut = (a>270||a<90);
+    p.setAttribute("fill", !on? "#1D2A38" : inOut ? `rgba(240,138,60,${(.25+.6*s.swash).toFixed(2)})` : `rgba(79,163,224,${(.25+.6*s.swash).toFixed(2)})`);
+  }
+  const kv=[["Velocidad", (on? S.rotor*5429:0).toFixed(0)+" rpm · ccw"],["Presión de salida", s.ps.toFixed(0)+" bar"],
+    ["Presión de entrada", (s.level>.02? "1.40–1.75":"0")+" bar"],["Caudal entregado", (on? Math.min(s.q, s.qmax):0).toFixed(2)+" L/min"],
+    ["Ángulo del plato", on ? Math.round(s.swash*100)+" % del máximo" : "—"],["Alivio 122 bar", s.relief?"ABIERTO":"cerrado"]];
+  $("pkv").innerHTML = kv.map(x=>`<div><span>${x[0]}</span><b>${x[1]}</b></div>`).join("");
+}
+
+/* ---------------- explanation ---------------- */
+function explain(){
+  const out=[], s1=S.sys[0], s2=S.sys[1];
+  if(S.rotor<.05 && !S.aux) out.push("Rotor parado y bomba auxiliar apagada: no hay presión. Los bypass de los actuadores están abiertos y las shut-off cerradas.");
+  if(S.rotor>.05 && S.rotor<.95) out.push(`La transmisión acelera o desacelera: las bombas giran al ${(S.rotor*100).toFixed(0)} % de 5429 rpm.`);
+  if(S.aux) out.push(`Bomba auxiliar eléctrica: alimenta solo el SYS 1 a unos 85 bar para el chequeo de libre movimiento. Límite: ${S.epu?"5 min con EPU":"90 s solo con batería"}${S.rotor>.08?"; con rotor girando salta HYD1 AUX PUMP ON":""}.`);
+  if(S.test===1) out.push("Prueba SYS 1: el switch energiza la solenoide del SYS 2, que cierra su shut-off. El SYS 2 cae a 0 bar (LOW PRESS HYD2) y los mandos se refuerzan solo con el SYS 1.");
+  if(S.test===2) out.push("Prueba SYS 2: se energiza la solenoide del SYS 1; LOW PRESS HYD1 y el SYS 2 refuerza solo los mandos.");
+  const A=S.act[S.selAx];
+  if(!A.manual && !A.hold){
+    if(Math.abs(A.e)>.03) out.push(`${AX[S.selAx].name}: la entrada se adelantó al pistón. El spool se abre, la presión entra a la cámara ${A.e>0?"A":"B"} y el fluido de la cámara ${A.e>0?"B":"A"} vuelve al depósito. El pistón sigue a la entrada y vuelve a cerrar el spool.`);
+    else out.push(`${AX[S.selAx].name}: entrada y pistón coinciden; spool en neutro. El fluido queda atrapado en ambas cámaras y bloquea las fuerzas de reacción del rotor.`);
+  }
+  if(A.hold) out.push(`La carga del rotor (${A.load.toFixed(0)} N) supera la fuerza disponible (${A.cap.toFixed(0)} N): las check valves cierran y el pistón conserva su posición.`);
+  for(let i=0;i<2;i++){ const s=S.sys[i];
+    if(s.low && !(S.test===2-i+0 && false)) {} }
+  if((s1.pd<LOW_ON) !== (s2.pd<LOW_ON)){
+    const bad = s1.pd<LOW_ON?1:2;
+    out.push(`Solo funciona el SYS ${bad===1?2:1}: sus pistones mueven el vástago común; los del SYS ${bad} están en bypass. Fuerza máxima a la mitad (3150 N por eje principal, 5179 N en cola).`);
+  }
+  if(s1.pd<LOW_ON && s2.pd<LOW_ON && (S.rotor>.05||S.aux)) out.push("Ambos sistemas sin presión: los dos lados de cada pistón están unidos por el bypass, así que no hay bloqueo hidráulico, pero tampoco refuerzo.");
+  if(S.traShut) out.push("El nivel del depósito 1 bajó del punto de corte (0.19–0.20 l): la válvula piloto, movida por el pistón de baja, cerró la shut-off TRA. El rotor de cola queda con el SYS 2.");
+  if(S.fail.leak1 && !S.traShut) out.push(`Fuga en SYS 1: el nivel baja (${s1.level.toFixed(2)} l). Al llegar a 0.20 l se cortará el suministro del SYS 1 al rotor de cola.`);
+  if(S.fail.comp1) out.push("El compensador de la bomba 1 no reduce el caudal: la presión sube hasta que abre el alivio de alta a 122 bar, que descarga a retorno. El VMS pasa la zona ámbar de 121 bar: HYD OVERLIMIT.");
+  if(S.fail.break2) out.push("Rotura en SYS 2: el fluido se pierde, cae la presión y el nivel. HYD TREND avisa de la caída antes de LOW PRESS.");
+  if(S.fail.jam){ const j=S.act[S.jamAxis]; out.push(`Spool del SYS 1 atascado en ${AX[S.jamAxis].name.toLowerCase()}: ${j.sys[0].ov?"la entrada desplazó spool y camisa contra el resorte; la línea de control se abrió a retorno, la shut-off cerró y el bypass abrió. Ese eje sigue con el SYS 2.":"en cuanto muevas el mando, el override mecánico liberará el eje."}`); }
+  if(S.gust>0) out.push("Ráfaga: la fuerza de reacción del rotor sube de golpe.");
+  if(S.degraded) out.push("La retención de la bomba auxiliar dejó pasar flujo inverso desde el SYS 1: HYD1 DEGRADED.");
+  if(S.fail.sens2) out.push(s2.invalidT>20 ? "Transmisor SYS 2 inválido por más de 20 s: VMS SENSOR y asteriscos ámbar en el VMS." : `Transmisor SYS 2 sin señal: VMS SENSOR aparecerá tras 20 s de confirmación (${s2.invalidT.toFixed(0)} s).`);
+  if(!out.length) out.push("Todo normal.");
+  $("explain").innerHTML = out.slice(0,7).map(s=>`<p>${s}</p>`).join("");
+}
+
+function renderLog(){
+  $("log").innerHTML = S.log.slice().reverse().map(([t,m])=>`<div><b>${t.toFixed(0).padStart(4," ")} s</b> ${m}</div>`).join("");
+}
+
+/* ---------------- UI wiring ---------------- */
+function buildFails(){
+  $("fails").innerHTML = FAILS.map(f=>`<label><input type="checkbox" id="f-${f[0]}"><span>${f[1]}<small>${f[2]}</small></span></label>`).join("");
+  FAILS.forEach(f=>{
+    $("f-"+f[0]).addEventListener("change",e=>{
+      S.fail[f[0]] = e.target.checked;
+      if(f[0]==="jam" && e.target.checked){ S.jamAxis = S.selAx==="tail" ? "coll" : S.selAx; }
+      log((e.target.checked?"Falla activada: ":"Falla eliminada: ")+f[1]+(f[0]==="jam"?` (${AX[S.jamAxis].name})`:""));
+      if(f[0]==="leak1" && !e.target.checked) {}
+    });
+  });
+}
+function syncFails(){ FAILS.forEach(f=>$("f-"+f[0]).checked=!!S.fail[f[0]]); }
+
+const SCEN = [
+  ["Prevuelo con bomba auxiliar", ()=>{ S.rotorTarget=0; S.rotor=0; S.sys.forEach(s=>{s.ps=0;s.pd=0;}); S.aux=true; S.epu=false; S.auto=true; log("Escenario: prevuelo, rotor parado, bomba auxiliar ON, solo batería"); }],
+  ["Prueba en tierra SYS 1", ()=>{ S.test=1; setTimeout(()=>{S.test=0; log("Switch HYD TEST suelto: vuelve al centro");}, 6000); log("Escenario: switch HYD TEST en SYS 1 (6 s)"); }],
+  ["Fuga en SYS 1", ()=>{ S.fail.leak1=true; S.sys[0].level=.32; syncFails(); log("Escenario: fuga en SYS 1, nivel 0.32 l"); }],
+  ["Rotura de línea SYS 2", ()=>{ S.fail.break2=true; syncFails(); log("Escenario: rotura de línea en SYS 2"); }],
+  ["Spool atascado (colectivo)", ()=>{ S.fail.jam=true; S.jamAxis="coll"; selectAxis("coll"); syncFails(); log("Escenario: spool del SYS 1 atascado en colectivo"); }],
+  ["Ráfaga con un sistema", ()=>{ S.fail.pump2=true; syncFails(); setTimeout(()=>{S.gust=1.8; log("Ráfaga de viento");},1500); log("Escenario: bomba 2 fallada y ráfaga"); }],
+];
+function buildScen(){
+  $("scen").innerHTML = SCEN.map((s,i)=>`<button class="btn small" data-i="${i}">${s[0]}</button>`).join("");
+  $("scen").querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>SCEN[+b.dataset.i][1]()));
+}
+
+function wire(){
+  document.querySelectorAll("#speedSeg button").forEach(b=>b.addEventListener("click",()=>{
+    S.speed=+b.dataset.s; document.querySelectorAll("#speedSeg button").forEach(x=>x.classList.toggle("on",x===b));
+  }));
+  $("pauseBtn").addEventListener("click",()=>{ S.paused=!S.paused; $("pauseBtn").textContent=S.paused?"Continuar":"Pausa"; });
+  $("resetBtn").addEventListener("click",()=>{ const sp=S.speed; fresh(); S.speed=sp; syncFails(); syncInputs(); selectAxis("coll"); renderLog(); log("Simulación reiniciada"); });
+  $("rotorBtn").addEventListener("click",()=>{ S.rotorTarget = S.rotorTarget>0?0:1; log(S.rotorTarget? "Arranque: el rotor y las bombas aceleran":"Corte: el rotor y las bombas se detienen"); });
+  $("auxBtn").addEventListener("click",()=>{ S.aux=!S.aux; log("AUX HYD PUMP "+(S.aux?"ON":"OFF")); });
+  $("epuBtn").addEventListener("click",()=>{ S.epu=!S.epu; log("EPU "+(S.epu?"conectada":"desconectada")); });
+  for(const [id,v] of [["t1",1],["t2",2]]){
+    const b=$(id);
+    const down=e=>{ e.preventDefault(); S.test=v; b.classList.add("held"); log(`HYD TEST en SYS ${v}`); };
+    const up=()=>{ if(S.test===v){ S.test=0; b.classList.remove("held"); log("HYD TEST vuelve al centro"); } };
+    b.addEventListener("pointerdown",down); b.addEventListener("pointerup",up); b.addEventListener("pointerleave",up); b.addEventListener("pointercancel",up);
+    b.addEventListener("keydown",e=>{ if((e.key===" "||e.key==="Enter") && S.test!==v) down(e); });
+    b.addEventListener("keyup",e=>{ if(e.key===" "||e.key==="Enter") up(); });
+  }
+  $("selfTestBtn").addEventListener("click",()=>{ S.selfTest.signal=true; S.selfTest.psw=true; log("Autoprueba Helionix: se comprueban transmisores y switches de presión"); setTimeout(()=>{S.selfTest.signal=false;},8000); });
+  document.querySelectorAll("#axSeg button").forEach(b=>b.addEventListener("click",()=>selectAxis(b.dataset.a)));
+  document.querySelectorAll("#pSeg button").forEach(b=>b.addEventListener("click",()=>{ S.selPump=+b.dataset.p; document.querySelectorAll("#pSeg button").forEach(x=>x.classList.toggle("on",x===b)); }));
+  $("ovTestBtn").addEventListener("click",()=>{ S.ovTest=5; log("Botón de prueba de override presionado ("+AX[S.selAx].name+")"); });
+  // pilot
+  const pad=$("pad");
+  let drag=false;
+  const setPad=e=>{ const r=pad.getBoundingClientRect(); S.inp.lat=clamp((e.clientX-r.left)/r.width,0,1); S.inp.long=clamp(1-(e.clientY-r.top)/r.height,0,1); manual(); };
+  pad.addEventListener("pointerdown",e=>{drag=true;pad.setPointerCapture(e.pointerId);setPad(e);});
+  pad.addEventListener("pointermove",e=>{ if(drag) setPad(e); });
+  pad.addEventListener("pointerup",()=>drag=false);
+  pad.addEventListener("keydown",e=>{
+    const d=.04; let used=true;
+    if(e.key==="ArrowLeft") S.inp.lat=clamp(S.inp.lat-d,0,1); else if(e.key==="ArrowRight") S.inp.lat=clamp(S.inp.lat+d,0,1);
+    else if(e.key==="ArrowUp") S.inp.long=clamp(S.inp.long+d,0,1); else if(e.key==="ArrowDown") S.inp.long=clamp(S.inp.long-d,0,1); else used=false;
+    if(used){ e.preventDefault(); manual(); }
+  });
+  $("coll").addEventListener("input",e=>{ S.inp.coll=e.target.value/100; manual(); });
+  $("ped").addEventListener("input",e=>{ S.inp.ped=e.target.value/100; manual(); });
+  $("autoBtn").addEventListener("click",()=>{ S.auto=!S.auto; });
+  $("centerBtn").addEventListener("click",()=>{ S.inp={long:.5,lat:.5,coll:.5,ped:.5}; manual(); });
+  $("gustBtn").addEventListener("click",()=>{ S.gust=1.8; log("Ráfaga de viento: sube la fuerza de reacción del rotor principal"); });
+}
+function manual(){ S.auto=false; syncInputs(); }
+function syncInputs(){
+  $("knob").style.left=(S.inp.lat*100)+"%"; $("knob").style.top=((1-S.inp.long)*100)+"%";
+  if(document.activeElement!==$("coll")) $("coll").value=Math.round(S.inp.coll*100);
+  if(document.activeElement!==$("ped")) $("ped").value=Math.round(S.inp.ped*100);
+  $("collV").textContent=Math.round(S.inp.coll*100)+" %";
+  const pd=Math.round((S.inp.ped-.5)*200); $("pedV").textContent = pd===0?"0":(pd<0?`izq. ${-pd} %`:`der. ${pd} %`);
+  $("autoBtn").textContent = S.auto?"Auto ON":"Auto OFF"; $("autoBtn").classList.toggle("on",S.auto);
+  $("autoState").textContent = S.auto ? "movimiento automático" : "control manual";
+}
+
+
+/* ================= link phone <-> screen (room) ================= */
+const PAGE_URL = location.origin + location.pathname;
+let SIM_URL = "", MY_CODE = "";
+const REMOTE_CODE = (new URLSearchParams(location.search).get("control")||"").toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,5);
+const PEER_PREFIX = "h145-hyd-sim-";
+let linkTried = false;
+let room = null, lastCtl = 0, remoteHolding = false, peersRemote = 0, peersScreen = 0;
+const AX_KEYS = ["long","coll","lat","tail"], FAIL_KEYS = FAILS.map(f=>f[0]);
+const n01 = v => (typeof v==="number" && isFinite(v)) ? clamp(v,0,1) : null;
+
+/* PeerJS adapter with the same small API the page uses: emit, on, presence, onPeers */
+function makeLink(){
+  const handlers={}, conns=new Set(); let peersFn=null, myRole="";
+  const fire=(t,d)=>(handlers[t]||[]).forEach(f=>{try{f(d);}catch(e){}});
+  const peersChanged=()=>{ if(peersFn){ const list=[...conns].filter(c=>c.open).map(()=>({role: myRole==="screen"?"remote":"screen"})); peersFn(list); } };
+  const attach=c=>{
+    conns.add(c);
+    c.on("open",peersChanged);
+    c.on("data",m=>{ if(m && typeof m==="object" && typeof m.t==="string") fire(m.t,m.d); });
+    c.on("close",()=>{conns.delete(c);peersChanged();});
+    c.on("error",()=>{conns.delete(c);peersChanged();});
+  };
+  return {
+    attach, conns,
+    emit(t,d){ conns.forEach(c=>{ if(c.open){ try{c.send({t,d});}catch(e){} } }); },
+    on(t,f){ (handlers[t]=handlers[t]||[]).push(f); },
+    presence(p){ myRole=(p&&p.role)||""; },
+    onPeers(f){ peersFn=f; peersChanged(); }
+  };
+}
+const randCode=()=>{ const a="ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; let s=""; for(let i=0;i<5;i++) s+=a[Math.floor(Math.random()*a.length)]; return s; };
+function getRoom(){
+  return new Promise(res=>{
+    if(typeof window.Peer!=="function"){ res(null); return; }
+    const link=makeLink();
+    let done=false; const finish=v=>{ if(!done){done=true;res(v);} };
+    setTimeout(()=>finish(null),12000);
+    if(!IS_REMOTE){
+      const tryOpen=(n)=>{
+        MY_CODE=randCode();
+        const peer=new Peer(PEER_PREFIX+MY_CODE,{debug:0});
+        peer.on("open",()=>{ SIM_URL=PAGE_URL+"?control="+MY_CODE; showCode(); finish(link); });
+        peer.on("connection",c=>link.attach(c));
+        peer.on("error",e=>{ if(e && e.type==="unavailable-id" && n<4){ peer.destroy(); tryOpen(n+1);} else if(!done) finish(null); });
+        peer.on("disconnected",()=>{ try{peer.reconnect();}catch(e){} });
+      };
+      tryOpen(0);
+    } else {
+      const peer=new Peer({debug:0});
+      const connect=()=>{ const c=peer.connect(PEER_PREFIX+REMOTE_CODE,{reliable:true}); link.attach(c); c.on("close",()=>setTimeout(connect,2000)); };
+      peer.on("open",()=>{ connect(); finish(link); });
+      peer.on("error",()=>{ if(!done) finish(null); });
+      peer.on("disconnected",()=>{ try{peer.reconnect();}catch(e){} });
+    }
+  });
+}
+let qrMade=false;
+function showCode(){
+  $("qrCode").textContent=MY_CODE; $("qrUrl").textContent=SIM_URL;
+  if($("qrModal").classList.contains("open")) makeQr();
+}
+function makeQr(){
+  if(qrMade || !SIM_URL) return; qrMade=true;
+  try{ new QRCode($("qr"), {text:SIM_URL, width:240, height:240, colorDark:"#0A1017", colorLight:"#ffffff", correctLevel: QRCode.CorrectLevel.M}); }
+  catch(e){ $("qr").innerHTML='<span style="color:#0A1017;font-size:13px;padding:10px;text-align:center">No se pudo generar el QR. Usa el código o el enlace.</span>'; }
+}
+function watchPeers(role){
+  try{
+    room.presence({role});
+    room.onPeers(ps=>{
+      const list = Array.isArray(ps) ? ps : Object.values(ps||{});
+      const others = list.filter(p=>!(p && (p.self || p.you || p.isSelf)));
+      const roleOf = p => (p && (p.state||p.presence||p.data||p)||{}).role;
+      peersRemote = others.filter(p=>roleOf(p)==="remote").length;
+      peersScreen = others.filter(p=>roleOf(p)==="screen").length;
+      updateLinkUI();
+    });
+  }catch(e){}
+}
+let lastSeen = 0;
+function updateLinkUI(){
+  if(IS_REMOTE){
+    const ok = peersScreen>0 || (performance.now()-lastSeen<2000);
+    $("rDot").classList.toggle("on", ok);
+    $("rLink").textContent = !room ? "Conectando… (se necesita internet)" : ok ? "Conectado a la pantalla "+REMOTE_CODE : "Buscando la pantalla "+REMOTE_CODE+"… (déjala abierta y revisa el código)";
+  } else {
+    const ok = peersRemote>0 || (performance.now()-lastCtl<3000);
+    $("linkDot").classList.toggle("on", ok);
+    $("linkTxt").textContent = !room ? (linkTried ? "Enlace sin internet" : "Preparando enlace…") : ok ? "Celular conectado" : "Celular sin conectar · código "+MY_CODE;
+  }
+}
+
+function startScreenLink(){
+  getRoom().then(r=>{
+    room = r; linkTried = true; updateLinkUI();
+    if(!room){ $("qrUrl").textContent = "No se pudo contactar el servidor de enlace. Revisa la conexión a internet y recarga la página."; return; }
+    watchPeers("screen");
+    room.on("ctl", d=>{
+      if(!d || typeof d!=="object") return;
+      lastCtl = performance.now();
+      const v = {long:n01(d.long), lat:n01(d.lat), coll:n01(d.coll), ped:n01(d.ped)};
+      if(d.touch){ for(const k in v) if(v[k]!==null) S.inp[k]=v[k]; S.auto=false; }
+      if(d.test===0||d.test===1||d.test===2){ if(S.test!==d.test){ S.test=d.test; log(d.test?`Celular: HYD TEST en SYS ${d.test}`:"Celular: HYD TEST vuelve al centro"); } remoteHolding = d.test!==0; }
+      syncInputs(); updateLinkUI();
+    });
+    room.on("act", d=>{
+      if(!d || typeof d!=="object") return;
+      lastCtl = performance.now();
+      const a=d.a, v=!!d.v;
+      if(a==="rotor"){ S.rotorTarget=v?1:0; log("Celular: "+(v?"arranque del rotor":"corte del rotor")); }
+      else if(a==="aux"){ S.aux=v; log("Celular: AUX HYD PUMP "+(v?"ON":"OFF")); }
+      else if(a==="epu"){ S.epu=v; log("Celular: EPU "+(v?"conectada":"desconectada")); }
+      else if(a==="auto"){ S.auto=v; syncInputs(); }
+      else if(a==="pause"){ S.paused=v; $("pauseBtn").textContent=S.paused?"Continuar":"Pausa"; }
+      else if(a==="gust"){ $("gustBtn").click(); }
+      else if(a==="center"){ S.inp={long:.5,lat:.5,coll:.5,ped:.5}; S.auto=false; syncInputs(); }
+      else if(a==="reset"){ $("resetBtn").click(); }
+      else if(a==="selftest"){ $("selfTestBtn").click(); }
+      else if(a==="ovtest"){ $("ovTestBtn").click(); }
+      else if(a==="axis" && AX_KEYS.includes(d.k)){ selectAxis(d.k); }
+      else if(a==="speed" && [1,5,20].includes(d.s)){ const b=document.querySelector(`#speedSeg button[data-s="${d.s}"]`); if(b) b.click(); }
+      else if(a==="fail" && FAIL_KEYS.includes(d.k)){ const cb=$("f-"+d.k); if(cb.checked!==v){ cb.checked=v; cb.dispatchEvent(new Event("change")); } }
+      else if(a==="scen" && Number.isInteger(d.i) && d.i>=0 && d.i<SCEN.length){ SCEN[d.i][1](); }
+      updateLinkUI();
+    });
+    setInterval(()=>{
+      // safety: a held HYD TEST from the phone releases if the phone goes quiet
+      if(remoteHolding && performance.now()-lastCtl>1200){ S.test=0; remoteHolding=false; log("Sin señal del celular: HYD TEST vuelve al centro"); }
+      try{
+        const m = messages().map(x=>[[x[0],x[1],x[2]].filter(Boolean).join(" "), x[3]]);
+        room.emit("st", {p1:+S.sys[0].pd.toFixed(1), p2:+S.sys[1].pd.toFixed(1), inv2: !!(S.fail.sens2 && (S.selfTest.signal || S.sys[1].invalidT>20)),
+          m, rotor:S.rotorTarget>0, aux:S.aux, epu:S.epu, auto:S.auto, paused:S.paused, test:S.test, speed:S.speed, ax:S.selAx,
+          fails:Object.assign({},S.fail), inp:Object.assign({},S.inp), ex:($("explain").firstChild||{}).textContent||""});
+      }catch(e){}
+      updateLinkUI();
+    }, 250);
+  });
+}
+
+/* ---------- QR modal ---------- */
+function wireQr(){
+  const modal=$("qrModal");
+  $("connectBtn").addEventListener("click",()=>{
+    modal.classList.add("open");
+    makeQr();
+    if(!room && linkTried) $("qrUrl").textContent = "No se pudo contactar el servidor de enlace. Revisa la conexión a internet y recarga la página.";
+  });
+  $("closeQr").addEventListener("click",()=>modal.classList.remove("open"));
+  modal.addEventListener("click",e=>{ if(e.target===modal) modal.classList.remove("open"); });
+  document.addEventListener("keydown",e=>{ if(e.key==="Escape") modal.classList.remove("open"); });
+  $("copyUrl").addEventListener("click",async()=>{ try{ await navigator.clipboard.writeText(SIM_URL); $("copyUrl").textContent="Copiado"; }catch(e){ $("copyUrl").textContent="Copia el texto de arriba"; } });
+  $("beRemote").addEventListener("click",()=>{
+    const c=($("codeIn").value||"").toUpperCase().replace(/[^A-Z0-9]/g,"");
+    if(c.length!==5){ $("codeIn").focus(); $("codeIn").style.borderColor="#F26B5B"; return; }
+    location.href = PAGE_URL + "?control=" + c;
+  });
+}
+
+/* ---------- phone view ---------- */
+function startRemote(){
+  document.querySelector(".wrap").style.display="none";
+  $("remote").classList.add("on");
+  const R = {long:.5,lat:.5,coll:.5,ped:.5, test:0, touchedAt:0, st:null};
+  const send = (topic,obj)=>{ try{ room && room.emit(topic,obj); }catch(e){} };
+  const sendCtl = touch => send("ctl",{long:R.long,lat:R.lat,coll:R.coll,ped:R.ped,test:R.test,touch:!!touch});
+  const act = (a,extra)=>send("act",Object.assign({a},extra||{}));
+  function drawInputs(){
+    $("rknob").style.left=(R.lat*100)+"%"; $("rknob").style.top=((1-R.long)*100)+"%";
+    if(document.activeElement!==$("rcoll")) $("rcoll").value=Math.round(R.coll*100);
+    if(document.activeElement!==$("rped")) $("rped").value=Math.round(R.ped*100);
+    $("rcollV").textContent=Math.round(R.coll*100)+" %";
+    const pd=Math.round((R.ped-.5)*200); $("rpedV").textContent= pd===0?"0":(pd<0?`izq. ${-pd} %`:`der. ${pd} %`);
+  }
+  const touched=()=>{ R.touchedAt=performance.now(); sendCtl(true); drawInputs(); };
+  // cyclic pad
+  const pad=$("rpad"); let drag=false;
+  const setPad=e=>{ const r=pad.getBoundingClientRect(); R.lat=clamp((e.clientX-r.left)/r.width,0,1); R.long=clamp(1-(e.clientY-r.top)/r.height,0,1); touched(); };
+  pad.addEventListener("pointerdown",e=>{drag=true;pad.setPointerCapture(e.pointerId);setPad(e);});
+  pad.addEventListener("pointermove",e=>{ if(drag) setPad(e); });
+  pad.addEventListener("pointerup",()=>drag=false); pad.addEventListener("pointercancel",()=>drag=false);
+  $("rcoll").addEventListener("input",e=>{R.coll=e.target.value/100; touched();});
+  $("rped").addEventListener("input",e=>{R.ped=e.target.value/100; touched();});
+  $("rCenter").addEventListener("click",()=>{ R.long=R.lat=R.coll=R.ped=.5; act("center"); R.touchedAt=performance.now(); drawInputs(); });
+  $("rAuto").addEventListener("click",()=>act("auto",{v:!(R.st&&R.st.auto)}));
+  $("rGust").addEventListener("click",()=>act("gust"));
+  $("rPause").addEventListener("click",()=>act("pause",{v:!(R.st&&R.st.paused)}));
+  $("rRotor").addEventListener("click",()=>act("rotor",{v:!(R.st&&R.st.rotor)}));
+  $("rAux").addEventListener("click",()=>act("aux",{v:!(R.st&&R.st.aux)}));
+  $("rEpu").addEventListener("click",()=>act("epu",{v:!(R.st&&R.st.epu)}));
+  $("rSelf").addEventListener("click",()=>act("selftest"));
+  $("rOv").addEventListener("click",()=>act("ovtest"));
+  $("rReset").addEventListener("click",()=>act("reset"));
+  for(const [id,v] of [["rT1",1],["rT2",2]]){
+    const b=$(id);
+    const down=e=>{ e.preventDefault(); R.test=v; b.classList.add("held"); sendCtl(false); };
+    const up=()=>{ if(R.test===v){ R.test=0; b.classList.remove("held"); sendCtl(false); } };
+    b.addEventListener("pointerdown",down); b.addEventListener("pointerup",up); b.addEventListener("pointerleave",up); b.addEventListener("pointercancel",up);
+    b.addEventListener("contextmenu",e=>e.preventDefault());
+  }
+  document.querySelectorAll("#rAx button").forEach(b=>b.addEventListener("click",()=>act("axis",{k:b.dataset.a})));
+  document.querySelectorAll("#rSpd button").forEach(b=>b.addEventListener("click",()=>act("speed",{s:+b.dataset.s})));
+  $("rFails").innerHTML = FAILS.map(f=>`<button class="btn" data-k="${f[0]}">${f[1]}</button>`).join("");
+  $("rFails").querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>act("fail",{k:b.dataset.k, v:!(R.st&&R.st.fails&&R.st.fails[b.dataset.k])})));
+  $("rScen").innerHTML = SCEN.map((x,i)=>`<button class="btn" data-i="${i}">${x[0]}</button>`).join("");
+  $("rScen").querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>act("scen",{i:+b.dataset.i})));
+  $("rExit").addEventListener("click",()=>{ location.href = PAGE_URL; });
+  drawInputs();
+
+  function onState(st){
+    if(!st || typeof st!=="object") return;
+    R.st=st; lastSeen=performance.now();
+    const num=v=>typeof v==="number"&&isFinite(v)?v:0;
+    $("rP1").textContent=num(st.p1).toFixed(0);
+    $("rP2").textContent=st.inv2?"***":num(st.p2).toFixed(0);
+    $("rP1").style.color = (num(st.p1)<69||num(st.p1)>121)?"#F2B33D":"#DDE7F1";
+    $("rP2").style.color = (st.inv2||num(st.p2)<69||num(st.p2)>121)?"#F2B33D":"#DDE7F1";
+    const m=Array.isArray(st.m)?st.m:[];
+    const f=$("rFnd"); f.textContent="";
+    if(!m.length){ const sp=document.createElement("span"); sp.style.color="#4C5E70"; sp.textContent="sin mensajes hidráulicos"; f.appendChild(sp); }
+    m.slice(0,10).forEach(x=>{ const sp=document.createElement("span"); sp.textContent=String(x[0]||""); sp.className = ["caution","advisory","info"].includes(x[1])?x[1]:""; f.appendChild(sp); });
+    $("rExpl").textContent = typeof st.ex==="string" ? st.ex.slice(0,300) : "";
+    $("rRotor").textContent = st.rotor ? "Parar rotor" : "Arrancar rotor";
+    $("rAux").classList.toggle("on",!!st.aux); $("rAux").textContent="AUX HYD PUMP: "+(st.aux?"ON":"OFF");
+    $("rEpu").classList.toggle("on",!!st.epu); $("rEpu").textContent="EPU: "+(st.epu?"conectada":"desconectada");
+    $("rAuto").classList.toggle("on",!!st.auto); $("rAuto").textContent= st.auto?"Auto ON":"Auto OFF";
+    $("rAutoTxt").textContent = st.auto?"movimiento automático":"control manual";
+    $("rPause").textContent = st.paused?"Continuar":"Pausa";
+    document.querySelectorAll("#rAx button").forEach(b=>b.classList.toggle("on",b.dataset.a===st.ax));
+    document.querySelectorAll("#rSpd button").forEach(b=>b.classList.toggle("on",+b.dataset.s===st.speed));
+    $("rFails").querySelectorAll("button").forEach(b=>b.classList.toggle("on",!!(st.fails&&st.fails[b.dataset.k])));
+    // follow the screen's controls when the phone is idle (e.g. auto mode)
+    if(performance.now()-R.touchedAt>1500 && st.inp){ for(const k of ["long","lat","coll","ped"]){ const v=n01(st.inp[k]); if(v!==null) R[k]=v; } drawInputs(); }
+    updateLinkUI();
+  }
+  getRoom().then(r=>{
+    room=r; updateLinkUI();
+    if(!room) return;
+    watchPeers("remote");
+    room.on("st", onState);
+    // stream absolute control state while touching or holding HYD TEST
+    setInterval(()=>{
+      const active = performance.now()-R.touchedAt<400;
+      if(R.test || active) sendCtl(active);
+      updateLinkUI();
+    }, 100);
+  });
+  setInterval(updateLinkUI, 1000);
+}
+
+/* ---------------- loop ---------------- */
+const IS_REMOTE = REMOTE_CODE.length === 5;
+buildSchematic(); buildDetail(); buildPump(); buildFails(); buildScen(); wire(); syncInputs(); wireQr();
+log("Rotor girando al 100 %: ambos sistemas a 103 bar");
+if(IS_REMOTE){ startRemote(); } else { startScreenLink(); }
+let last=performance.now(), expT=0;
+function frame(now){
+  let dtr=Math.min(.05,(now-last)/1000); last=now;
+  if(!S.paused){
+    let dt=dtr*S.speed;
+    const n=Math.ceil(dt/0.02);
+    for(let i=0;i<n;i++) step(dt/n);
+    if(S.auto) syncInputs();
+  }
+  render(S.paused?0:dtr);
+  expT+=dtr; if(expT>.4){ expT=0; explain(); }
+  requestAnimationFrame(frame);
+}
+// warm-up so the first frame shows a working state
+if(!IS_REMOTE){ for(let i=0;i<50;i++) step(.02); render(0); explain(); requestAnimationFrame(frame); }
+})();
+</script>
+</body>
+</html>
