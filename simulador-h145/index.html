@@ -322,13 +322,14 @@ body.proj .panel h2{font-size:22px}
     <div id="qr"></div>
     <p style="margin:0;text-align:center">Código de esta pantalla: <b id="qrCode" style="font-family:var(--mono);font-size:24px;letter-spacing:3px">…</b></p>
     <div class="urlbox" id="qrUrl">Conectando con el servidor de enlace…</div>
+    <span class="note">Estado: <b id="diagS">Preparando enlace…</b></span>
     <div class="row">
       <button class="btn" id="copyUrl">Copiar enlace</button>
-      <input id="codeIn" placeholder="Código" maxlength="5" style="width:110px;background:#0C141C;color:var(--text);border:1px solid #33495F;border-radius:7px;padding:7px;font-family:var(--mono);text-transform:uppercase" aria-label="Código de la pantalla a controlar">
+      <input id="codeIn" placeholder="Código" maxlength="6" style="width:110px;background:#0C141C;color:var(--text);border:1px solid #33495F;border-radius:7px;padding:7px;font-family:var(--mono);text-transform:uppercase" aria-label="Código de la pantalla a controlar">
       <button class="btn" id="beRemote">Usar este dispositivo como control</button>
       <button class="btn" id="closeQr">Cerrar</button>
     </div>
-    <span class="note" id="qrNote">Para controlar otra pantalla desde este dispositivo, escribe su código y pulsa «Usar este dispositivo como control». Pantalla y celular necesitan internet; el enlace usa WebRTC con el servidor público de PeerJS.</span>
+    <span class="note" id="qrNote">Para controlar otra pantalla desde este dispositivo, escribe su código y pulsa «Usar este dispositivo como control». Pantalla y celular necesitan internet (pueden estar en redes distintas: Wi-Fi y datos móviles). El enlace pasa por un servidor MQTT público; no se envía ningún dato personal.</span>
   </div>
 </div>
 
@@ -340,6 +341,7 @@ body.proj .panel h2{font-size:22px}
     <div class="rstat"><div><span>HYD 1</span><b id="rP1">—</b> bar</div><div><span>HYD 2</span><b id="rP2">—</b> bar</div></div>
     <div class="rfnd" id="rFnd"><span style="color:#4C5E70">sin datos</span></div>
     <span class="note" id="rExpl"></span>
+    <span class="note">Estado del enlace: <b id="diagR">Preparando enlace…</b></span>
   </section>
   <section class="panel">
     <h2>Mandos <small id="rAutoTxt"></small></h2>
@@ -381,7 +383,7 @@ body.proj .panel h2{font-size:22px}
   <section class="panel"><h2>Escenarios</h2><div class="rfails" id="rScen"></div></section>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.1.0/paho-mqtt.min.js"></script>
 
 <script>
 (function(){
@@ -1477,62 +1479,89 @@ let wasLinked=false;
 /* ================= link phone <-> screen (room) ================= */
 const PAGE_URL = location.origin + location.pathname;
 let SIM_URL = "", MY_CODE = "";
-const REMOTE_CODE = (new URLSearchParams(location.search).get("control")||"").toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,5);
-const PEER_PREFIX = "h145-hyd-sim-";
+const RAW_CODE = (new URLSearchParams(location.search).get("control")||"").toUpperCase().replace(/[^A-Z0-9]/g,"");
+const REMOTE_CODE = RAW_CODE.slice(0,5);
+const REMOTE_BROKER = /^[0-2]$/.test(RAW_CODE.charAt(5)) ? +RAW_CODE.charAt(5) : 0;
 let linkTried = false;
 let room = null, lastCtl = 0, remoteHolding = false, peersRemote = 0, peersScreen = 0;
 const AX_KEYS = ["long","coll","lat","tail"], FAIL_KEYS = FAILS.map(f=>f[0]);
 const n01 = v => (typeof v==="number" && isFinite(v)) ? clamp(v,0,1) : null;
 
-/* PeerJS adapter with the same small API the page uses: emit, on, presence, onPeers */
-function makeLink(){
-  const handlers={}, conns=new Set(); let peersFn=null, myRole="";
+/* MQTT relay adapter (works across Wi-Fi / mobile data; no direct device-to-device link needed).
+   Same small API the page uses: emit, on, presence, onPeers. */
+const BROKERS=[
+  {name:"HiveMQ", host:"broker.hivemq.com", port:8884, path:"/mqtt"},
+  {name:"EMQX", host:"broker.emqx.io", port:8084, path:"/mqtt"},
+  {name:"Mosquitto", host:"test.mosquitto.org", port:8081, path:"/"}
+];
+let BROKER_IDX = 0, linkStatus = "Preparando enlace…";
+function setLinkStatus(t){ linkStatus=t; const a=$("diagS"), b=$("diagR"); if(a) a.textContent=t; if(b) b.textContent=t; }
+function makeLink(client, base, role){
+  const handlers={}; let peersFn=null; const seen=new Map();
   const fire=(t,d)=>(handlers[t]||[]).forEach(f=>{try{f(d);}catch(e){}});
-  const peersChanged=()=>{ if(peersFn){ const list=[...conns].filter(c=>c.open).map(()=>({role: myRole==="screen"?"remote":"screen"})); peersFn(list); } };
-  const attach=c=>{
-    conns.add(c);
-    c.on("open",peersChanged);
-    c.on("data",m=>{ if(m && typeof m==="object" && typeof m.t==="string") fire(m.t,m.d); });
-    c.on("close",()=>{conns.delete(c);peersChanged();});
-    c.on("error",()=>{conns.delete(c);peersChanged();});
+  const inTopic = base + (role==="screen" ? "p2s" : "s2p");
+  const outTopic = base + (role==="screen" ? "s2p" : "p2s");
+  client.onMessageArrived = m=>{
+    let o; try{ o=JSON.parse(m.payloadString); }catch(e){ return; }
+    if(!o || typeof o!=="object" || typeof o.t!=="string") return;
+    if(o.from) seen.set(String(o.from).slice(0,40), performance.now());
+    fire(o.t, o.d);
   };
-  return {
-    attach, conns,
-    emit(t,d){ conns.forEach(c=>{ if(c.open){ try{c.send({t,d});}catch(e){} } }); },
+  client.subscribe(inTopic,{qos:0});
+  client.onConnected = (re)=>{ if(re){ try{ client.subscribe(inTopic,{qos:0}); setLinkStatus("Enlace recuperado"); }catch(e){} } };
+  const me = Math.random().toString(36).slice(2,10);
+  const link = {
+    emit(t,d){ try{ const M=(window.Paho.Message||window.Paho.MQTT.Message); const msg=new M(JSON.stringify({t,d,from:me})); msg.destinationName=outTopic; msg.qos=0; client.send(msg); }catch(e){} },
     on(t,f){ (handlers[t]=handlers[t]||[]).push(f); },
-    presence(p){ myRole=(p&&p.role)||""; },
-    onPeers(f){ peersFn=f; peersChanged(); }
+    presence(){}, onPeers(f){ peersFn=f; }
   };
+  // heartbeat both ways so each side knows the other is alive
+  setInterval(()=>{
+    link.emit("hello",{role});
+    const now=performance.now(); let n=0; seen.forEach((t,k)=>{ if(now-t<5000) n++; else seen.delete(k); });
+    if(peersFn) peersFn(Array.from({length:n},()=>({role: role==="screen"?"remote":"screen"})));
+  },1500);
+  return link;
 }
-const randCode=()=>{ const a="ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; let s=""; for(let i=0;i<5;i++) s+=a[Math.floor(Math.random()*a.length)]; return s; };
+const randCode=()=>{ const a="ABCDEFGHJKLMNPQRSTUVWXYZ"; let s=""; for(let i=0;i<5;i++) s+=a[Math.floor(Math.random()*a.length)]; return s; };
+function connectBroker(idx, onOk, onFail){
+  const PahoC = window.Paho && (window.Paho.Client || (window.Paho.MQTT && window.Paho.MQTT.Client));
+  if(!PahoC){ onFail("No cargó la librería de enlace (revisa internet)"); return; }
+  const b=BROKERS[idx];
+  let client;
+  try{ client = new PahoC(b.host, b.port, b.path, "h145-"+Math.random().toString(36).slice(2,12)); }
+  catch(e){ onFail("Error creando el cliente"); return; }
+  client.onConnectionLost = r=>{ setLinkStatus(`Enlace perdido con ${b.name}; reconectando…`); };
+  setLinkStatus(`Conectando con el servidor ${b.name}…`);
+  try{
+    client.connect({useSSL:true, timeout:7, keepAliveInterval:20, cleanSession:true, reconnect:true,
+      onSuccess:()=>{ setLinkStatus(`Servidor de enlace: ${b.name} conectado`); onOk(client); },
+      onFailure:e=>{ onFail(`${b.name} no respondió`); }});
+  }catch(e){ onFail(`${b.name} no respondió`); }
+}
 function getRoom(){
   return new Promise(res=>{
-    if(typeof window.Peer!=="function"){ res(null); return; }
-    const link=makeLink();
-    let done=false; const finish=v=>{ if(!done){done=true;res(v);} };
-    setTimeout(()=>finish(null),12000);
     if(!IS_REMOTE){
-      const tryOpen=(n)=>{
-        MY_CODE=randCode();
-        const peer=new Peer(PEER_PREFIX+MY_CODE,{debug:0});
-        peer.on("open",()=>{ SIM_URL=PAGE_URL+"?control="+MY_CODE; showCode(); finish(link); });
-        peer.on("connection",c=>link.attach(c));
-        peer.on("error",e=>{ if(e && e.type==="unavailable-id" && n<4){ peer.destroy(); tryOpen(n+1);} else if(!done) finish(null); });
-        peer.on("disconnected",()=>{ try{peer.reconnect();}catch(e){} });
+      const tryIdx = i=>{
+        if(i>=BROKERS.length){ setLinkStatus("No se pudo contactar ningún servidor de enlace. ¿La computadora tiene internet? Algunas redes bloquean estos puertos (8084/8884/8081)."); res(null); return; }
+        connectBroker(i, client=>{
+          BROKER_IDX=i; MY_CODE=randCode();
+          SIM_URL = PAGE_URL + "?control=" + MY_CODE + i;
+          showCode();
+          res(makeLink(client, `h145sim/v1/${MY_CODE}/`, "screen"));
+        }, msg=>{ setLinkStatus(msg+"; probando otro servidor…"); tryIdx(i+1); });
       };
-      tryOpen(0);
+      tryIdx(0);
     } else {
-      const peer=new Peer({debug:0});
-      const connect=()=>{ const c=peer.connect(PEER_PREFIX+REMOTE_CODE,{reliable:true}); link.attach(c); c.on("close",()=>setTimeout(connect,2000)); };
-      peer.on("open",()=>{ connect(); finish(link); });
-      peer.on("error",()=>{ if(!done) finish(null); });
-      peer.on("disconnected",()=>{ try{peer.reconnect();}catch(e){} });
+      connectBroker(BROKER_IDX, client=>{
+        res(makeLink(client, `h145sim/v1/${REMOTE_CODE}/`, "remote"));
+      }, msg=>{ setLinkStatus(msg+". Revisa que el celular tenga internet; algunas redes bloquean estos puertos: prueba con datos móviles o con otra Wi-Fi."); res(null); });
     }
   });
 }
 let qrMade=false;
 function showCode(){
-  $("qrCode").textContent=MY_CODE; $("qrUrl").textContent=SIM_URL;
+  $("qrCode").textContent=MY_CODE+BROKER_IDX; $("qrUrl").textContent=SIM_URL;
   if($("qrModal").classList.contains("open")) makeQr();
 }
 function makeQr(){
@@ -1558,13 +1587,13 @@ function updateLinkUI(){
   if(IS_REMOTE){
     const ok = peersScreen>0 || (performance.now()-lastSeen<2000);
     $("rDot").classList.toggle("on", ok);
-    $("rLink").textContent = !room ? "Conectando… (se necesita internet)" : ok ? "Conectado a la pantalla "+REMOTE_CODE : "Buscando la pantalla "+REMOTE_CODE+"… (déjala abierta y revisa el código)";
+    $("rLink").textContent = !room ? "Sin enlace (ver detalle abajo)" : ok ? "Conectado a la pantalla "+REMOTE_CODE+REMOTE_BROKER : "Servidor OK, pero la pantalla "+REMOTE_CODE+REMOTE_BROKER+" no responde: revisa que siga abierta y que el código coincida";
   } else {
     const ok = peersRemote>0 || (performance.now()-lastCtl<3000);
     if(ok && !wasLinked && room){ wasLinked=true; enterProj(); } if(!ok && peersRemote===0) wasLinked=false;
     $("sDot").classList.toggle("on", ok); $("sLink").textContent = ok ? "Celular conectado: controla desde el celular" : "Esperando al celular…";
     $("linkDot").classList.toggle("on", ok);
-    $("linkTxt").textContent = !room ? (linkTried ? "Enlace sin internet" : "Preparando enlace…") : ok ? "Celular conectado" : "Celular sin conectar · código "+MY_CODE;
+    $("linkTxt").textContent = !room ? (linkTried ? "Enlace sin conexión (ver detalle en «Conectar celular»)" : "Preparando enlace…") : ok ? "Celular conectado" : "Celular sin conectar · código "+MY_CODE+BROKER_IDX;
   }
 }
 
@@ -1636,7 +1665,7 @@ function wireQr(){
   $("copyUrl").addEventListener("click",async()=>{ try{ await navigator.clipboard.writeText(SIM_URL); $("copyUrl").textContent="Copiado"; }catch(e){ $("copyUrl").textContent="Copia el texto de arriba"; } });
   $("beRemote").addEventListener("click",()=>{
     const c=($("codeIn").value||"").toUpperCase().replace(/[^A-Z0-9]/g,"");
-    if(c.length!==5){ $("codeIn").focus(); $("codeIn").style.borderColor="#F26B5B"; return; }
+    if(!/^[A-Z]{5}[0-2]?$/.test(c)){ $("codeIn").focus(); $("codeIn").style.borderColor="#F26B5B"; return; }
     location.href = PAGE_URL + "?control=" + c;
   });
 }
@@ -1750,7 +1779,7 @@ function startRemote(){
 }
 
 /* ---------------- loop ---------------- */
-const IS_REMOTE = REMOTE_CODE.length === 5;
+const IS_REMOTE = /^[A-Z]{5}$/.test(REMOTE_CODE); if(IS_REMOTE) BROKER_IDX = REMOTE_BROKER;
 buildSchematic(); buildDetail(); buildPump(); buildFails(); buildScen(); wire(); syncInputs(); wireQr(); buildVB(); wireVB(); wireProj();
 log("Rotor girando al 100 %: ambos sistemas a 103 bar");
 if(IS_REMOTE){ startRemote(); } else { startScreenLink(); }

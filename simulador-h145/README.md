@@ -9,10 +9,10 @@ No hace falta instalar nada ni iniciar sesión: funciona en cualquier navegador 
 ## Controlarlo desde el celular
 
 1. Abre el simulador en la pantalla grande y pulsa **📱 Conectar celular**.
-2. Escanea el código QR con el celular, o abre la página en el celular y escribe el código de 5 letras que aparece en la pantalla.
+2. Escanea el código QR con el celular, o abre la página en el celular y escribe el código (5 letras y un número) que aparece en la pantalla.
 3. El celular muestra un control remoto con el cíclico, colectivo, pedales, switches del overhead, fallas y escenarios. Pueden conectarse varios celulares a la misma pantalla.
 
-El enlace entre celular y pantalla usa WebRTC a través del servidor público gratuito de [PeerJS](https://peerjs.com/), así que ambos necesitan internet. Si la red del taller bloquea WebRTC, el simulador sigue funcionando en la pantalla con mouse o teclado.
+El enlace entre celular y pantalla pasa por un servidor MQTT público (HiveMQ, EMQX o Mosquitto, el primero que responda), así que ambos necesitan internet, aunque pueden estar en redes distintas (Wi-Fi y datos móviles). El código tiene 5 letras y un número. Si la red bloquea los puertos 8084/8884/8081, la ventana «Conectar celular» lo indica; prueba con datos móviles. El simulador sigue funcionando en la pantalla con mouse o teclado.
 
 ## Qué incluye
 
