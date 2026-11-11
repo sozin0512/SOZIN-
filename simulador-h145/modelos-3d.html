@@ -76,6 +76,12 @@ input[type=range]{width:100%;accent-color:var(--press)}
   aside{border-left:0;border-top:1px solid var(--line)}
 }
 @media (prefers-reduced-motion:reduce){.hs.sel{transform:none}}
+/* embedded in the simulator (projection / phone control) */
+body.embed header, body.embed nav{display:none}
+body.embed .app{grid-template-columns:minmax(0,1fr) 300px;grid-template-rows:minmax(0,1fr);height:100%}
+body.embed aside{font-size:15px}
+body.embed #hint{display:none}
+
 </style>
 </head>
 <body>
@@ -634,6 +640,51 @@ const MODELS = [
     }};
   }}
 ];
+
+/* ================= remote API (simulator / phone) ================= */
+const EMBED = /[?&]embed=1/.test(location.search);
+if(EMBED) document.body.classList.add("embed");
+function m3dState(){
+  return { models: MODELS.map(m=>({id:m.id, name:m.name})), cur: cur? cur.id : null,
+    params: (cur && cur.params || []).map(p=>({id:p.id, label:p.label, min:p.min, max:p.max, step:p.step||1, value:P[p.id], text: p.fmt? p.fmt(P[p.id]) : String(P[p.id])})),
+    parts: labels.map(l=>({k:l.k, text:l.text})).filter((x,i,a)=>a.findIndex(y=>y.k===x.k)===i).slice(0,40),
+    ui: {play:UI.play, cut:UI.cut, labels:UI.labels, explode:UI.explode, sheet:UI.sheet, sheets:SHOW_SHEETS && !!(cur&&cur.img)},
+    sel: selKey, status: ($("status").textContent||"").slice(0,220), title: cur? cur.name : "" };
+}
+function m3dPost(){ if(window.parent!==window){ try{ window.parent.postMessage({src:"h145m3d", state:m3dState()}, "*"); }catch(e){} } }
+function setParam(id, v){
+  const p=(cur&&cur.params||[]).find(x=>x.id===id); if(!p || typeof v!=="number" || !isFinite(v)) return;
+  v=clamp(Math.round(v/(p.step||1))*(p.step||1), p.min, p.max);
+  P[id]=v; const inp=$("p-"+id); if(inp) inp.value=v; const out=$("pv-"+id); if(out) out.textContent = p.fmt? p.fmt(v) : v;
+  if(id==="in" && $("p-auto")){ P.auto=0; $("p-auto").value=0; $("pv-auto").textContent="OFF"; }
+}
+function orbit(dx, dy){
+  const off=camera.position.clone().sub(controls.target); const sph=new T.Spherical().setFromVector3(off);
+  sph.theta -= clamp(dx,-1,1); sph.phi = clamp(sph.phi - clamp(dy,-1,1), .12, PI-.12);
+  off.setFromSpherical(sph); camera.position.copy(controls.target).add(off); focus.on=false;
+}
+function zoom(f){
+  const off=camera.position.clone().sub(controls.target); const L=off.length();
+  off.setLength(clamp(L*clamp(f,.5,2), 2.5, 40)); camera.position.copy(controls.target).add(off);
+}
+window.addEventListener("message", e=>{
+  if(e.source!==window.parent) return;
+  const d=e.data; if(!d || d.src!=="h145sim" || typeof d.cmd!=="string") return;
+  switch(d.cmd){
+    case "load": if(MODELS.some(m=>m.id===d.id)) load(d.id); break;
+    case "toggle": if(["play","cut","labels"].includes(d.k)){ UI[d.k]=!!d.v; syncButtons(); } break;
+    case "sheet": if([0,1,2].includes(d.v)){ UI.sheet=d.v; syncButtons(); setTimeout(resize,0); } break;
+    case "explode": if(typeof d.v==="number"){ UI.explode=clamp(d.v,0,1); $("explode").value=Math.round(UI.explode*100); $("explodeV").textContent=Math.round(UI.explode*100)+" %"; } break;
+    case "orbit": if(typeof d.dx==="number" && typeof d.dy==="number") orbit(d.dx, d.dy); break;
+    case "zoom": if(typeof d.f==="number") zoom(d.f); break;
+    case "reset": resetView(); break;
+    case "param": if(typeof d.id==="string") setParam(d.id, d.v); break;
+    case "select": if(typeof d.k==="string") select(d.k); break;
+    case "ping": break;
+  }
+  m3dPost();
+});
+setInterval(m3dPost, 700);
 
 /* ================= UI ================= */
 function buildNav(){
