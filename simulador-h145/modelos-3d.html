@@ -170,7 +170,18 @@ function springX(r,h,turns,wire,mat,parent,x,y,z){ const s=spring(r,h,turns,wire
 const V=(px,py,z)=>new T.Vector3((px-640)/100,(360-py)/100,z||0);
 const X=px=>(px-640)/100, Y=py=>(360-py)/100;
 const toV=p=>Array.isArray(p)?V(p[0],p[1],p[2]||0):p;
-function pathOf(pts){ const p=new T.CurvePath(); for(let i=0;i<pts.length-1;i++) p.add(new T.LineCurve3(toV(pts[i]),toV(pts[i+1]))); return p; }
+class Polyline extends T.Curve{
+  constructor(pts){ super(); this.v=pts.map(toV); this.cum=[0]; for(let i=1;i<this.v.length;i++) this.cum.push(this.cum[i-1]+this.v[i].distanceTo(this.v[i-1])); this.len=this.cum[this.cum.length-1]||1e-6; }
+  getPoint(t, target){
+    const p=target||new T.Vector3(); const d=Math.min(Math.max(t,0),1)*this.len;
+    let i=1; while(i<this.cum.length-1 && this.cum[i]<d) i++;
+    const seg=(this.cum[i]-this.cum[i-1])||1e-6, k=Math.min(Math.max((d-this.cum[i-1])/seg,0),1);
+    return p.copy(this.v[i-1]).lerp(this.v[i],k);
+  }
+  getPointAt(u, target){ return this.getPoint(u, target); }
+  getLength(){ return this.len; }
+}
+function pathOf(pts){ return new Polyline(pts); }
 function pipe(pts, mat, r, parent){
   const path=pathOf(pts); const g=group(parent||root);
   add(new T.TubeGeometry(path, Math.max(12,pts.length*18), r||.065, 8, false), mat, g);
@@ -666,7 +677,7 @@ function load(id){
   $("selCard").textContent = m.hot && SHOW_SHEETS ? "Toca una etiqueta del modelo o un número de la lámina." : "Toca una etiqueta para resaltar la pieza.";
   buildParams(m); buildSheet(m);
   UI.cut=!!m.cut;
-  model=m.build();
+  try{ model=m.build(); }catch(e){ model=null; $("status").textContent="Error al construir el modelo: "+e.message; }
   syncButtons();
   setTimeout(resize,0);
   resetView(m);
@@ -693,17 +704,21 @@ controls.addEventListener("start",()=>{ focus.on=false; });
 
 buildNav();
 resize();
-load((location.hash||"").slice(1) || "bloque");
+try{ load((location.hash||"").slice(1) || "bloque"); }catch(e){ $("status").textContent="Error al cargar el modelo: "+e.message; }
 let last=performance.now(), stT=0;
 function frame(now){
+  requestAnimationFrame(frame);
   const dt=Math.min(.05,(now-last)/1000); last=now;
+  try{ step(dt); }catch(e){ $("status").textContent="Error: "+e.message; }
+}
+function step(dt){
   for(const x of exploders) x.obj.position.copy(x.obj.userData.base).addScaledVector(x.vec, UI.explode);
   let st="";
   try{ st = model && model.update ? model.update(dt) : ""; }catch(e){ st="Error en el modelo: "+e.message; }
   for(const f of flows){
     const on=f.active() && UI.explode<.05;
     if(UI.play) f.t=(f.t+dt*f.speed)%1;
-    f.ps.forEach((p,i)=>{ p.visible=on; if(on){ const u=(f.t+i/f.ps.length)%1; p.position.copy(f.path.getPointAt(u)); } });
+    f.ps.forEach((p,i)=>{ p.visible=on; if(on){ const u=(f.t+i/f.ps.length)%1; f.path.getPoint(u, p.position); } });
   }
   if(selBox) selBox.update();
   if(focus.on){ controls.target.lerp(focus.target, .08); if(controls.target.distanceTo(focus.target)<.01) focus.on=false; }
@@ -711,7 +726,6 @@ function frame(now){
   controls.update();
   renderer.render(scene,camera);
   updateLabels();
-  requestAnimationFrame(frame);
 }
 if(window.ResizeObserver) new ResizeObserver(resize).observe(view);
 requestAnimationFrame(frame);
