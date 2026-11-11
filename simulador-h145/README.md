@@ -26,3 +26,7 @@ El enlace entre celular y pantalla pasa por un servidor MQTT público (HiveMQ, E
 ## Aviso
 
 Modelo didáctico basado en el Training Manual Pilot, cap. 05 Flight Control (rev. 4, marzo 2024). Las presiones, fuerzas, carreras, velocidades, umbrales y tiempos son los del manual; el caudal de las bombas, las cargas aerodinámicas y las constantes de tiempo son aproximaciones para la animación. **No sustituye al manual de vuelo, al manual de mantenimiento ni a la instrucción aprobada.** Proyecto independiente, sin relación con Airbus Helicopters.
+
+## Modelos 3D
+
+En https://sozin0512.github.io/SOZIN-/simulador-h145/modelos-3d.html (o con el botón «🧊 Modelos 3D» del simulador): bomba de pistones, bomba auxiliar de engranajes, depósito con pistón doble 1:60, válvulas del bloque, actuador tándem y conjunto del rotor principal con SEMA. Se giran con el dedo o el mouse; tienen corte, vista explosionada y animación. Modelos ilustrativos, no a escala.
