@@ -102,6 +102,14 @@ input[type=range]{width:100%;accent-color:var(--press)}
 .note{font-size:12px;color:var(--muted)}
 .scen{display:flex;flex-wrap:wrap;gap:6px}
 
+/* ---- SEMA panel ---- */
+.semawrap{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:14px;min-height:0}
+@media (max-width:980px){.semawrap{grid-template-columns:1fr}}
+#semaSvg,#semaChart{width:100%;height:auto;display:block;background:#0B1219;border:1px solid var(--line);border-radius:8px}
+.semaside{display:flex;flex-direction:column;gap:10px;min-width:0}
+.semaExp{font-size:15px;line-height:1.5;background:#0C1A2A;border-left:4px solid #7FB2E8;padding:10px 12px;border-radius:6px}
+body.proj #sMain #semaSvg{flex:1 1 0;min-height:0;height:100%}
+body.proj #sMain .semawrap{flex:1 1 0;min-height:0}
 /* ---- valve block cutaway ---- */
 .vbwrap{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:14px;min-height:0}
 @media (max-width:980px){.vbwrap{grid-template-columns:1fr}}
@@ -242,6 +250,25 @@ body.proj .panel h2{font-size:22px}
     </div>
   </section>
 
+  <section class="panel" id="semaPanel" aria-label="SEMA y piloto automático">
+    <h2>SEMA y piloto automático (AFCS) · en vivo
+      <span class="row" style="gap:8px">
+        <button class="btn small" id="semaAp">AFCS OFF</button>
+        <button class="btn small" id="semaF1">SEMA 1: normal</button>
+      </span>
+    </h2>
+    <div class="semawrap">
+      <svg id="semaSvg" class="big" viewBox="0 0 1000 330" role="img" aria-label="Cadena de mando del eje seleccionado: mando del piloto, Flexball, varilla SEMA dúplex, actuador hidráulico y rotor"></svg>
+      <div class="semaside">
+        <svg id="semaChart" viewBox="0 0 520 250" role="img" aria-label="Gráfica en vivo: perturbación, corrección de los SEMA y resultado en el rotor"></svg>
+        <div class="field"><label for="turb">Turbulencia <b id="turbV">media</b></label><input type="range" id="turb" min="0" max="200" value="100"></div>
+        <div class="kv" id="semaKv"></div>
+        <div class="semaExp" id="semaExp"></div>
+      </div>
+    </div>
+    <span class="note">El eje mostrado es el que eliges en «Actuador en detalle». Los SEMA (Smart Electro-Mechanical Actuator) van en serie en la varilla que llega a cada actuador hidráulico (manual págs. 05-14, 05-29, 05-92/93). Autoridad y lógica de corrección: ilustrativas; los valores reales están en el capítulo AFCS.</span>
+  </section>
+
   <div class="grid-low">
     <section class="panel" aria-label="Mandos del piloto">
       <h2>Mandos del piloto <small id="autoState">movimiento automático</small></h2>
@@ -369,9 +396,17 @@ body.proj .panel h2{font-size:22px}
     <h2>Qué se proyecta</h2>
     <div class="rgrid">
       <button class="btn big" data-view="general">Esquema general</button><button class="btn big" data-view="bloque">Bloque de válvulas</button>
-      <button class="btn big" data-view="actuador">Actuador / SEMA</button><button class="btn big" data-view="bomba">Bomba</button>
+      <button class="btn big" data-view="actuador">Actuador</button><button class="btn big" data-view="bomba">Bomba</button>
+      <button class="btn big" data-view="sema" style="grid-column:1 / 3">SEMA / piloto automático</button>
     </div>
     <div class="rgrid"><button class="btn" id="rProj">Proyección</button><button class="btn" id="rAp">AFCS / SEMA</button></div>
+  </section>
+  <section class="panel">
+    <h2>SEMA / piloto automático</h2>
+    <div class="rgrid"><button class="btn big" id="rAp2">AFCS</button><button class="btn big" id="rSema1">SEMA 1</button></div>
+    <div class="field"><label for="rTurb">Turbulencia <b id="rTurbV">—</b></label><input type="range" id="rTurb" min="0" max="200" value="100"></div>
+    <span class="note" id="rSemaTxt"></span>
+    <span class="note">El eje mostrado es el de «Vista en pantalla» (LONG, COLL, LAT o COLA).</span>
   </section>
   <section class="panel">
     <h2>Bloque de válvulas</h2>
@@ -427,7 +462,7 @@ function fresh(){
     fail:{}, jamAxis:"coll",
     sys:[0,1].map(()=>({ps:P_OP, pd:P_OP, level:.62, low:false, prevPd:P_OP, trendT:0, trend:false, relief:false, q:0, qmax:9, swash:.2, invalidT:0})),
     traShut:false, degraded:false, selfTest:{signal:false, psw:false},
-    act:{}, ovTest:0, ap:false, sema:{}, turb:0, log:[], prevMsgs:new Set(), aural:"", auralT:0
+    act:{}, ovTest:0, ap:false, sema:{}, turb:0, turbAmp:1, semaHist:[], log:[], prevMsgs:new Set(), aural:"", auralT:0
   };
   for(const k in AX){
     const st = AX[k].stroke;
@@ -465,7 +500,7 @@ function step(dt){
     const st=AX[k].stroke, auth=.05*st;
     const sm = S.sema[k] || (S.sema[k]={e1:0,e2:0,dist:0});
     const ph = {long:0,lat:1.7,coll:3.1,tail:4.4}[k];
-    sm.dist = (Math.sin(S.turb*1.3+ph)*.6 + Math.sin(S.turb*2.9+ph*2)*.4) * auth*1.6;   // turbulence the AFCS cancels
+    sm.dist = (Math.sin(S.turb*1.3+ph)*.6 + Math.sin(S.turb*2.9+ph*2)*.4) * auth*1.6*S.turbAmp;   // turbulence the AFCS cancels
     let want = S.ap ? -sm.dist/2 : 0;
     const t1 = (S.ap && !S.fail.sema1) ? clamp(want,-auth,auth) : 0;
     const t2 = S.ap ? clamp(S.fail.sema1 ? -sm.dist : want,-auth,auth) : 0;
@@ -866,6 +901,7 @@ function render(dtv){
   renderPump();
   renderVB(dtv);
   renderSema();
+  renderSemaPanel(dtv);
 }
 
 function chamberColors(A, sv){
@@ -1425,6 +1461,107 @@ function wireVB(){
   $("tourBtn").addEventListener("click",()=>{ VB.tour=!VB.tour; VB.cur=-1; syncTourBtn(); if(!VB.tour) $("vbCap").textContent="Toca cualquier pieza del corte para ver qué hace y su estado."; });
 }
 
+
+/* ================= SEMA panel ================= */
+const sv=$("semaSvg"), sc=$("semaChart");
+function sE(p,tag,a){ const e=document.createElementNS(NS,tag); for(const k in a) e.setAttribute(k,a[k]); p.appendChild(e); return e; }
+function sT(p,x,y,str,a){ const t=sE(p,"text",Object.assign({x,y,fill:"#9FB1C4","font-size":15},a||{})); t.textContent=str; return t; }
+const SP={};
+function buildSemaPanel(){
+  sv.innerHTML="";
+  // stick
+  sT(sv,30,40,"Mando del piloto",{fill:"#DDE7F1","font-weight":600});
+  sE(sv,"rect",{x:30,y:262,width:90,height:16,rx:4,fill:"#24364A"});
+  SP.stick=sE(sv,"line",{x1:75,y1:262,x2:75,y2:120,stroke:"#F08A3C","stroke-width":8,"stroke-linecap":"round"});
+  SP.stickTxt=sT(sv,30,305,"",{fill:"#9BE3B8","font-size":14});
+  // flexball
+  sE(sv,"path",{d:"M100 170 C 160 110, 200 230, 260 170 S 330 140, 330 160",fill:"none",stroke:"#8FA2B6","stroke-width":5,"stroke-dasharray":"2 6","stroke-linecap":"round"});
+  sT(sv,170,250,"Flexball",{"text-anchor":"middle"});
+  // support lever
+  sE(sv,"circle",{cx:340,cy:160,r:9,fill:"#DDE7F1"});
+  sT(sv,348,222,"Palanca de soporte",{"text-anchor":"end","font-size":13});
+  // SEMA rod
+  sT(sv,520,62,"Varilla SEMA dúplex",{fill:"#7FB2E8","font-weight":700,"text-anchor":"middle"});
+  sE(sv,"rect",{x:350,y:150,width:330,height:20,rx:8,fill:"#1D2A38",stroke:"#3E6E9E"});
+  [[420,"SEMA 1"],[560,"SEMA 2"]].forEach(([x,n],j)=>{
+    sE(sv,"rect",{x:x-45,y:110,width:90,height:100,rx:10,fill:"#13233A",stroke:"#7FB2E8","stroke-width":2,id:`spBox${j}`});
+    sT(sv,x,98,n,{"text-anchor":"middle",fill:"#DDE7F1","font-weight":600});
+    sE(sv,"rect",{x:x-35,y:152,width:70,height:16,rx:3,fill:"#0B1219"});
+    sE(sv,"line",{x1:x,y1:148,x2:x,y2:172,stroke:"#5E7C9A","stroke-width":2});
+    SP["bar"+j]=sE(sv,"rect",{x:x-6,y:152,width:12,height:16,rx:2,fill:"#7FB2E8"});
+    SP["val"+j]=sT(sv,x,232,"0.00 mm",{"text-anchor":"middle","font-size":14,"font-family":"JetBrains Mono, monospace",fill:"#BFE0FF"});
+  });
+  sT(sv,490,262,"Se alargan o acortan: mueven la entrada sin mover el mando",{"text-anchor":"middle","font-size":13,fill:"#8FA2B6"});
+  // actuator
+  SP.rodEnd=sE(sv,"circle",{cx:690,cy:160,r:9,fill:"#7FB2E8"});
+  sE(sv,"rect",{x:705,y:118,width:170,height:84,rx:10,fill:"#2A1A10",stroke:"#F08A3C","stroke-width":2});
+  sT(sv,790,106,"Actuador hidráulico",{"text-anchor":"middle",fill:"#DDE7F1","font-weight":600});
+  sT(sv,790,226,"amplifica la suma · 103 bar",{"text-anchor":"middle","font-size":13,fill:"#FFD3AE"});
+  sE(sv,"rect",{x:715,y:146,width:150,height:28,rx:4,fill:"#3B2412"});
+  SP.pis=sE(sv,"rect",{x:785,y:140,width:12,height:40,rx:3,fill:"#DDE7F1"});
+  // rotor
+  SP.rotor=sE(sv,"ellipse",{cx:945,cy:160,rx:44,ry:12,fill:"none",stroke:"#DDE7F1","stroke-width":4});
+  sE(sv,"line",{x1:875,y1:160,x2:905,y2:160,stroke:"#DDE7F1","stroke-width":4});
+  sT(sv,945,106,"Rotor",{"text-anchor":"middle",fill:"#DDE7F1","font-weight":600});
+  SP.afcs=sT(sv,520,30,"",{"text-anchor":"middle","font-size":14,"font-weight":700});
+  // AFCS command arrows
+  SP.cmd=sE(sv,"path",{d:"M520 40 L520 60",stroke:"#7FB2E8","stroke-width":2,"stroke-dasharray":"4 4",fill:"none"});
+  // chart frame
+  sc.innerHTML="";
+  for(const y of [40,125,210]) sE(sc,"line",{x1:40,y1:y,x2:510,y2:y,stroke:"#1C2A3A"});
+  sT(sc,36,129,"0",{"text-anchor":"end","font-size":12});
+  SP.lD=sE(sc,"polyline",{points:"",fill:"none",stroke:"#F2B33D","stroke-width":2});
+  SP.lC=sE(sc,"polyline",{points:"",fill:"none",stroke:"#7FB2E8","stroke-width":2});
+  SP.lR=sE(sc,"polyline",{points:"",fill:"none",stroke:"#FFFFFF","stroke-width":3});
+  sT(sc,44,22,"■ Turbulencia",{fill:"#F2B33D","font-size":13}); sT(sc,170,22,"■ Corrección SEMA",{fill:"#7FB2E8","font-size":13}); sT(sc,330,22,"■ Lo que llega al rotor",{fill:"#FFFFFF","font-size":13});
+  sT(sc,510,244,"últimos 12 s →",{"text-anchor":"end","font-size":12});
+  $("turb").addEventListener("input",e=>{ S.turbAmp=e.target.value/100; });
+  $("semaAp").addEventListener("click",()=>{ S.ap=!S.ap; log("AFCS "+(S.ap?"ON":"OFF")); });
+  $("semaF1").addEventListener("click",()=>{ const cb=$("f-sema1"); cb.checked=!cb.checked; cb.dispatchEvent(new Event("change")); });
+}
+let semaT=0;
+function semaSummary(){
+  const k=S.selAx, sm=S.sema[k]||{e1:0,e2:0,dist:0}, auth=.05*AX[k].stroke;
+  const res=sm.dist+sm.e1+sm.e2;
+  return `${AX[k].name}: SEMA 1 ${sm.e1>=0?"+":""}${sm.e1.toFixed(2)} mm · SEMA 2 ${sm.e2>=0?"+":""}${sm.e2.toFixed(2)} mm · llega al rotor ${Math.round(Math.abs(res)/(auth*1.6||1)*100)} % de la turbulencia`;
+}
+function renderSemaPanel(dt){
+  const k=S.selAx, ax=AX[k], sm=S.sema[k]||{e1:0,e2:0,dist:0}, auth=.05*ax.stroke, A=S.act[k];
+  const pil = (A.xpil!==undefined? A.xpil : A.xin)/ax.stroke - .5;
+  // stick: pilot input only (SEMA never moves it)
+  const ang = pil*50*Math.PI/180;
+  SP.stick.setAttribute("x2",(75+Math.sin(ang)*142).toFixed(1)); SP.stick.setAttribute("y2",(262-Math.cos(ang)*142).toFixed(1));
+  SP.stickTxt.textContent = S.ap ? "El mando no se mueve con el SEMA" : "Solo la orden del piloto";
+  [sm.e1,sm.e2].forEach((e,j)=>{ const x=j?560:420; SP["bar"+j].setAttribute("x",(x-6+clamp(e/auth,-1,1)*28).toFixed(1));
+    const failed = j===0 && S.fail.sema1;
+    SP["bar"+j].setAttribute("fill", failed? "#F26B5B" : S.ap? "#7FB2E8" : "#5E7C9A");
+    $("spBox"+j).setAttribute("stroke", failed? "#F26B5B" : S.ap? "#7FB2E8" : "#3E5068");
+    SP["val"+j].textContent = failed? "FALLADO (neutro)" : (e>=0?"+":"")+e.toFixed(2)+" mm"; });
+  SP.rodEnd.setAttribute("cx",(690+clamp((sm.e1+sm.e2)/auth,-2,2)*14).toFixed(1));
+  SP.pis.setAttribute("x",(715+clamp(A.xp/ax.stroke,0,1)*138).toFixed(1));
+  const res = sm.dist + sm.e1 + sm.e2;
+  SP.rotor.setAttribute("transform",`rotate(${(clamp(res/(auth*2),-1,1)*16 + pil*20).toFixed(1)} 945 160)`);
+  SP.afcs.textContent = S.ap ? (S.fail.sema1? "AFCS ON · solo SEMA 2 (mitad de autoridad)" : "AFCS ON · los dos SEMA corrigen") : "AFCS OFF · SEMA en neutro";
+  SP.afcs.setAttribute("fill", S.ap ? (S.fail.sema1? "#F2B33D" : "#9BE3B8") : "#8FA2B6");
+  // history
+  if(!S.paused){ semaT+=dt||0; if(semaT>.05){ semaT=0; S.semaHist.push([sm.dist, sm.e1+sm.e2, res, auth]); if(S.semaHist.length>240) S.semaHist.shift(); } }
+  const H=S.semaHist, n=H.length, sc2=a=>a*1.6*2||1;
+  const pts = idx => H.map((h,i)=>`${(40+i/239*470).toFixed(1)},${(125-clamp(h[idx]/sc2(h[3]),-1,1)*80).toFixed(1)}`).join(" ");
+  if(n){ SP.lD.setAttribute("points",pts(0)); SP.lC.setAttribute("points",pts(1)); SP.lR.setAttribute("points",pts(2)); }
+  // side texts
+  $("semaAp").textContent="AFCS "+(S.ap?"ON":"OFF"); $("semaAp").classList.toggle("on",S.ap);
+  $("semaF1").textContent="SEMA 1: "+(S.fail.sema1?"FALLADO":"normal"); $("semaF1").classList.toggle("on",!!S.fail.sema1);
+  const tv=S.turbAmp; $("turbV").textContent = tv<.05?"calma": tv<.7?"suave": tv<1.4?"media":"fuerte";
+  if(document.activeElement!==$("turb")) $("turb").value=Math.round(tv*100);
+  const kv=[["Eje",ax.name],["SEMA 1",S.fail.sema1?"fallado":(sm.e1>=0?"+":"")+sm.e1.toFixed(2)+" mm"],["SEMA 2",(sm.e2>=0?"+":"")+sm.e2.toFixed(2)+" mm"],
+    ["Autoridad c/u (ilustr.)","±"+auth.toFixed(2)+" mm"],["Mando del piloto",(A.xpil||A.xin).toFixed(1)+" mm"],["Entrada al actuador",A.xin.toFixed(1)+" mm"]];
+  $("semaKv").innerHTML = kv.map(x=>`<div><span>${x[0]}</span><b>${x[1]}</b></div>`).join("");
+  const pct=Math.round(Math.abs(res)/(auth*1.6*Math.max(S.turbAmp,.01))*100);
+  $("semaExp").textContent = S.turbAmp<.05 ? "Sin turbulencia: los SEMA no tienen nada que corregir." :
+    !S.ap ? "AFCS OFF: los SEMA quedan en neutro y la turbulencia llega completa al rotor (la línea blanca sigue a la amarilla). El piloto tendría que corregir con el mando." :
+    S.fail.sema1 ? "SEMA 1 fallado en neutro: el SEMA 2 corrige solo, con la mitad de autoridad. En turbulencia fuerte no alcanza y parte de la perturbación llega al rotor." :
+    "AFCS ON: cada SEMA aporta la mitad de la corrección (línea azul, opuesta a la amarilla). Lo que llega al rotor (línea blanca) queda casi plano y el mando del piloto no se mueve.";
+}
 /* ================= SEMA rendering ================= */
 function renderSema(){
   for(const k in AX){
@@ -1442,14 +1579,14 @@ function renderSema(){
 
 /* ================= projection mode ================= */
 const PROJ = {on:false, view:"general", ph:new Map()};
-const viewPanel = v => ({general:$("schem"), bloque:$("vbSvg"), actuador:$("detail"), bomba:$("pumpSvg")}[v]||$("schem")).closest("section");
+const viewPanel = v => ({general:$("schem"), bloque:$("vbSvg"), actuador:$("detail"), bomba:$("pumpSvg"), sema:$("semaSvg")}[v]||$("schem")).closest("section");
 function park(el, dest){
   if(!PROJ.ph.has(el)){ const c=document.createComment("ph"); el.parentNode.insertBefore(c, el); PROJ.ph.set(el,c); }
   dest.appendChild(el);
 }
 function unpark(el){ const c=PROJ.ph.get(el); if(c){ c.parentNode.insertBefore(el,c); c.remove(); PROJ.ph.delete(el); } }
 function setView(v){
-  if(!["general","bloque","actuador","bomba"].includes(v)) return;
+  if(!["general","bloque","actuador","bomba","sema"].includes(v)) return;
   PROJ.view=v;
   if(!PROJ.on) return;
   [...$("sMain").children].forEach(unpark);
@@ -1625,12 +1762,13 @@ function startScreenLink(){
       else if(a==="reset"){ $("resetBtn").click(); }
       else if(a==="selftest"){ $("selfTestBtn").click(); }
       else if(a==="ovtest"){ $("ovTestBtn").click(); }
-      else if(a==="view" && ["general","bloque","actuador","bomba"].includes(d.k)){ if(!PROJ.on) enterProj(); setView(d.k); }
+      else if(a==="view" && ["general","bloque","actuador","bomba","sema"].includes(d.k)){ if(!PROJ.on) enterProj(); setView(d.k); }
       else if(a==="proj"){ v ? enterProj() : exitProj(); }
       else if(a==="vbsys" && (d.i===0||d.i===1)){ openVB(d.i); }
       else if(a==="vbsel" && typeof d.k==="string" && COMPS[d.k] && !(COMPS[d.k].sys1 && VB.sys!==0)){ selectComp(d.k,true); if(PROJ.on) setView("bloque"); }
       else if(a==="tour"){ VB.tour=v; VB.cur=-1; syncTourBtn(); if(PROJ.on) setView("bloque"); }
       else if(a==="ap"){ S.ap=v; log("Celular: AFCS "+(v?"ON":"OFF")); }
+      else if(a==="turb" && typeof d.v==="number" && isFinite(d.v)){ S.turbAmp=clamp(d.v,0,2); }
       else if(a==="pump" && (d.i===0||d.i===1)){ const b=document.querySelector(`#pSeg button[data-p="${d.i}"]`); if(b) b.click(); if(PROJ.on) setView("bomba"); }
       else if(a==="axis" && AX_KEYS.includes(d.k)){ selectAxis(d.k); if(PROJ.on) setView("actuador"); }
       else if(a==="speed" && [1,5,20].includes(d.s)){ const b=document.querySelector(`#speedSeg button[data-s="${d.s}"]`); if(b) b.click(); }
@@ -1645,7 +1783,7 @@ function startScreenLink(){
         const m = messages().map(x=>[[x[0],x[1],x[2]].filter(Boolean).join(" "), x[3]]);
         room.emit("st", {p1:+S.sys[0].pd.toFixed(1), p2:+S.sys[1].pd.toFixed(1), inv2: !!(S.fail.sens2 && (S.selfTest.signal || S.sys[1].invalidT>20)),
           m, rotor:S.rotorTarget>0, aux:S.aux, epu:S.epu, auto:S.auto, paused:S.paused, test:S.test, speed:S.speed, ax:S.selAx,
-          fails:Object.assign({},S.fail), inp:Object.assign({},S.inp), ex:($("explain").firstChild||{}).textContent||"", view:PROJ.view, proj:PROJ.on, vbSys:VB.sys, vbSel:VB.sel, tour:VB.tour, ap:S.ap, pump:S.selPump, card:(VB.sel&&COMPS[VB.sel])?COMPS[VB.sel].n+": "+COMPS[VB.sel].st(vSt(VB.sys)):""});
+          fails:Object.assign({},S.fail), inp:Object.assign({},S.inp), ex:($("explain").firstChild||{}).textContent||"", view:PROJ.view, proj:PROJ.on, vbSys:VB.sys, vbSel:VB.sel, tour:VB.tour, ap:S.ap, pump:S.selPump, turb:S.turbAmp, sema1f:!!S.fail.sema1, semaTxt:semaSummary(), card:(VB.sel&&COMPS[VB.sel])?COMPS[VB.sel].n+": "+COMPS[VB.sel].st(vSt(VB.sys)):""});
       }catch(e){}
       updateLinkUI();
     }, 250);
@@ -1708,6 +1846,11 @@ function startRemote(){
   document.querySelectorAll("#remote [data-view]").forEach(b=>b.addEventListener("click",()=>act("view",{k:b.dataset.view})));
   $("rProj").addEventListener("click",()=>act("proj",{v:!(R.st&&R.st.proj)}));
   $("rAp").addEventListener("click",()=>act("ap",{v:!(R.st&&R.st.ap)}));
+  $("rAp2").addEventListener("click",()=>{ act("ap",{v:!(R.st&&R.st.ap)}); act("view",{k:"sema"}); });
+  $("rSema1").addEventListener("click",()=>{ act("fail",{k:"sema1", v:!(R.st&&R.st.sema1f)}); act("view",{k:"sema"}); });
+  let turbT=0;
+  $("rTurb").addEventListener("input",e=>{ const now=performance.now(); if(now-turbT>80){ turbT=now; act("turb",{v:e.target.value/100}); } });
+  $("rTurb").addEventListener("change",e=>act("turb",{v:e.target.value/100}));
   document.querySelectorAll("#rVbSys button").forEach(b=>b.addEventListener("click",()=>{ act("vbsys",{i:+b.dataset.i}); act("view",{k:"bloque"}); }));
   document.querySelectorAll("#rPumpSel button").forEach(b=>b.addEventListener("click",()=>act("pump",{i:+b.dataset.i})));
   $("rTour").addEventListener("click",()=>act("tour",{v:!(R.st&&R.st.tour)}));
@@ -1753,6 +1896,10 @@ function startRemote(){
     document.querySelectorAll("#remote [data-view]").forEach(b=>b.classList.toggle("on", st.proj && b.dataset.view===st.view));
     $("rProj").textContent = "Proyección: "+(st.proj?"ON":"OFF"); $("rProj").classList.toggle("on",!!st.proj);
     $("rAp").textContent = "AFCS / SEMA: "+(st.ap?"ON":"OFF"); $("rAp").classList.toggle("on",!!st.ap);
+    $("rAp2").textContent = "AFCS: "+(st.ap?"ON":"OFF"); $("rAp2").classList.toggle("on",!!st.ap);
+    $("rSema1").textContent = "SEMA 1: "+(st.sema1f?"FALLADO":"normal"); $("rSema1").classList.toggle("on",!!st.sema1f);
+    if(typeof st.turb==="number"){ if(document.activeElement!==$("rTurb")) $("rTurb").value=Math.round(st.turb*100); $("rTurbV").textContent = st.turb<.05?"calma": st.turb<.7?"suave": st.turb<1.4?"media":"fuerte"; }
+    $("rSemaTxt").textContent = typeof st.semaTxt==="string" ? st.semaTxt.slice(0,200) : "";
     $("rTour").textContent = "Seguir la gota: "+(st.tour?"ON":"OFF"); $("rTour").classList.toggle("on",!!st.tour);
     document.querySelectorAll("#rVbSys button").forEach(b=>b.classList.toggle("on",+b.dataset.i===st.vbSys));
     document.querySelectorAll("#rPumpSel button").forEach(b=>b.classList.toggle("on",+b.dataset.i===st.pump));
@@ -1781,7 +1928,7 @@ function startRemote(){
 
 /* ---------------- loop ---------------- */
 const IS_REMOTE = /^[A-Z]{5}$/.test(REMOTE_CODE); if(IS_REMOTE) BROKER_IDX = REMOTE_BROKER;
-buildSchematic(); buildDetail(); buildPump(); buildFails(); buildScen(); wire(); syncInputs(); wireQr(); buildVB(); wireVB(); wireProj();
+buildSchematic(); buildDetail(); buildPump(); buildFails(); buildScen(); wire(); syncInputs(); wireQr(); buildVB(); wireVB(); wireProj(); buildSemaPanel();
 log("Rotor girando al 100 %: ambos sistemas a 103 bar");
 if(IS_REMOTE){ startRemote(); } else { startScreenLink(); }
 let last=performance.now(), expT=0;
