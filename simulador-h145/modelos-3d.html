@@ -7,81 +7,112 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&family=JetBrains+Mono:wght@400&display=swap">
 <style>
 :root{
-  /* Taller oscuro: lista de modelos a la izquierda, visor 3D grande, ficha y controles a la derecha */
+  /* Taller oscuro. Layout: lista de modelos | visor 3D + lámina del manual enlazada | ficha y controles */
   --bg:#0A1017; --panel:#111A24; --panel2:#16212E; --line:#24364A; --text:#DDE7F1; --muted:#8FA2B6;
-  --press:#F08A3C; --ret:#4FA3E0; --amber:#F2B33D;
+  --press:#E5483B; --ret:#46B85C; --ctl:#E8D44A; --amber:#F2B33D; --sel:#FFD58A;
   --display:'Barlow Condensed','Arial Narrow',sans-serif; --body:'Barlow',Arial,sans-serif; --mono:'JetBrains Mono','Courier New',monospace;
+  --sheetW:42%;
   color-scheme:dark;
 }
 *{box-sizing:border-box}
 html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:var(--body);font-size:15px}
-.app{display:grid;grid-template-columns:240px minmax(0,1fr) 320px;grid-template-rows:auto minmax(0,1fr);height:100%;gap:0}
+.app{display:grid;grid-template-columns:230px minmax(0,1fr) 310px;grid-template-rows:auto minmax(0,1fr);height:100%}
 header{grid-column:1 / 4;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
 header h1{font-family:var(--display);font-size:26px;margin:0;font-weight:600;letter-spacing:.02em}
 header p{margin:0;color:var(--muted);font-size:13px}
+.legend{display:flex;gap:12px;font-size:12px;color:var(--muted);flex-wrap:wrap;align-items:center}
+.legend i{display:inline-block;width:16px;height:5px;border-radius:2px;vertical-align:middle;margin-right:5px}
 nav{border-right:1px solid var(--line);padding:12px;display:flex;flex-direction:column;gap:8px;overflow:auto}
-nav button{text-align:left;background:var(--panel);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:10px 12px;cursor:pointer;font-family:var(--body);font-size:15px;font-weight:600}
+nav h3{font-family:var(--display);font-size:14px;color:var(--muted);margin:6px 2px 0;text-transform:uppercase;letter-spacing:.06em;font-weight:600}
+nav button{text-align:left;background:var(--panel);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:9px 11px;cursor:pointer;font-family:var(--body);font-size:15px;font-weight:600}
 nav button small{display:block;color:var(--muted);font-weight:400;font-size:12px;margin-top:2px}
-nav button.on{border-color:var(--press);background:#2A1C10}
-nav button:focus-visible,.btn:focus-visible,input:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
-#view{position:relative;min-width:0;min-height:0;overflow:hidden;background:radial-gradient(ellipse at 50% 40%,#16222F,#0A1017 70%)}
+nav button.on{border-color:var(--press);background:#2A1414}
+nav button:focus-visible,.btn:focus-visible,input:focus-visible,.hs:focus-visible,.lab:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+.work{display:grid;grid-template-columns:minmax(0,1fr) var(--sheetW);min-width:0;min-height:0}
+.work.nosheet{grid-template-columns:minmax(0,1fr) 0}
+#view{position:relative;min-width:0;min-height:0;overflow:hidden;background:radial-gradient(ellipse at 50% 40%,#17222F,#0A1017 70%)}
 #view canvas{display:block;width:100%;height:100%;touch-action:none}
 #labels{position:absolute;inset:0;pointer-events:none}
-.lab{position:absolute;transform:translate(-50%,-100%);font-size:12px;font-weight:600;background:rgba(10,16,23,.82);border:1px solid #3A5068;color:#DDE7F1;padding:2px 7px;border-radius:5px;white-space:nowrap}
-.lab::after{content:"";position:absolute;left:50%;top:100%;width:1px;height:10px;background:#8FA2B6}
-.lab.p{border-color:#B0602A;color:#FFD3AE}
-.lab.r{border-color:#2F6A9E;color:#BFE0FF}
+.lab{position:absolute;transform:translate(-50%,-100%);font-size:12px;font-weight:600;background:rgba(10,16,23,.86);border:1px solid #3A5068;color:#DDE7F1;padding:2px 7px;border-radius:5px;white-space:nowrap;pointer-events:auto;cursor:pointer}
+.lab::after{content:"";position:absolute;left:50%;top:100%;width:1px;height:9px;background:#8FA2B6}
+.lab b{display:inline-block;min-width:16px;height:16px;line-height:16px;border-radius:8px;background:#2C3E52;color:#fff;text-align:center;font-size:10px;margin-right:5px}
+.lab.p{border-color:#9E3A30;color:#FFC9C2}
+.lab.r{border-color:#2E7A3E;color:#C3F0CD}
+.lab.sel{border-color:var(--sel);background:#3B2A12;color:#FFE9C7;z-index:2}
 #hint{position:absolute;left:12px;bottom:10px;font-size:12px;color:var(--muted);pointer-events:none}
 #err{position:absolute;inset:0;display:none;align-items:center;justify-content:center;padding:24px;text-align:center;color:var(--muted)}
+#sheet{border-left:1px solid var(--line);background:#0E151E;display:flex;flex-direction:column;min-width:0;min-height:0;overflow:auto}
+.work.nosheet #sheet{display:none}
+.sheetIn{position:relative;margin:10px;background:#fff;border-radius:8px;overflow:hidden}
+.sheetIn img{display:block;width:100%;height:auto}
+.hs{position:absolute;width:22px;height:22px;margin:-11px 0 0 -11px;border-radius:50%;background:rgba(14,26,43,.88);border:2px solid #F2B33D;color:#fff;font:600 11px/18px var(--body);text-align:center;cursor:pointer;padding:0}
+.hs.sel{background:#F2B33D;color:#0A1017;transform:scale(1.35);box-shadow:0 0 0 6px rgba(242,179,61,.35);z-index:2}
+.sheetCap{padding:0 12px 10px;font-size:12px;color:var(--muted)}
+.sheetCap b{color:var(--text)}
 aside{border-left:1px solid var(--line);padding:14px;display:flex;flex-direction:column;gap:12px;overflow:auto}
+aside>*{flex-shrink:0}
 aside h2{font-family:var(--display);font-size:24px;margin:0;font-weight:600;color:#FFE1C7}
 aside p{margin:0;line-height:1.5;font-size:14px}
+.selcard{background:#1B1408;border-left:4px solid var(--amber);border-radius:6px;padding:9px 12px;font-size:14px;line-height:1.45;min-height:44px}
+.selcard b{color:#FFE1C7}
 .status{font-family:var(--mono);font-size:13px;background:#05090D;border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-height:38px;color:#FFE1C7}
 .ctrl{display:flex;flex-direction:column;gap:4px}
-.ctrl label{font-size:13px;color:var(--muted);display:flex;justify-content:space-between}
+.ctrl label{font-size:13px;color:var(--muted);display:flex;justify-content:space-between;gap:8px}
 .ctrl label b{color:var(--text);font-family:var(--mono);font-weight:400}
 input[type=range]{width:100%;accent-color:var(--press)}
 .row{display:flex;gap:8px;flex-wrap:wrap}
-.btn{background:var(--panel2);color:var(--text);border:1px solid #33495F;border-radius:7px;padding:7px 11px;cursor:pointer;font-weight:600;font-size:14px;font-family:var(--body)}
-.btn.on{background:#3B2A12;border-color:var(--press);color:#FFD9B8}
+.btn{background:var(--panel2);color:var(--text);border:1px solid #33495F;border-radius:7px;padding:7px 11px;cursor:pointer;font-weight:600;font-size:14px;font-family:var(--body);text-decoration:none}
+.btn.on{background:#3B1A16;border-color:var(--press);color:#FFD2CC}
 .note{font-size:12px;color:var(--muted);line-height:1.45}
-.legend{display:flex;gap:12px;font-size:12px;color:var(--muted);flex-wrap:wrap}
-.legend i{display:inline-block;width:16px;height:4px;border-radius:2px;vertical-align:middle;margin-right:5px}
-@media (max-width:1000px){
-  .app{grid-template-columns:1fr;grid-template-rows:auto auto 62vh auto;height:auto}
+@media (max-width:1100px){
+  .app{grid-template-columns:1fr;grid-template-rows:auto auto auto auto;height:auto}
   header{grid-column:1}
   nav{flex-direction:row;overflow-x:auto;border-right:0;border-bottom:1px solid var(--line)}
-  nav button{min-width:170px}
+  nav h3{display:none}
+  nav button{min-width:180px}
+  .work,.work.nosheet{grid-template-columns:1fr;grid-template-rows:62vh auto}
+  #view{height:62vh}
+  #sheet{border-left:0;border-top:1px solid var(--line)}
   aside{border-left:0;border-top:1px solid var(--line)}
 }
+@media (prefers-reduced-motion:reduce){.hs.sel{transform:none}}
 </style>
 </head>
 <body>
 <div class="app">
   <header>
-    <div><h1>Modelos 3D · sistema hidráulico H145</h1><p>Gira con un dedo o el mouse, acerca con dos dedos o la rueda. Modelos ilustrativos, no a escala, basados en los cortes del manual (cap. 05).</p></div>
-    <div class="legend"><a class="btn" href="./" style="text-decoration:none;margin-right:6px">← Simulador</a><span><i style="background:var(--press)"></i>Alta presión</span><span><i style="background:var(--ret)"></i>Retorno / baja presión</span></div>
+    <div><h1>Modelos 3D · sistema hidráulico H145</h1><p>Gira con un dedo o el mouse · pellizca o rueda para acercar · toca una etiqueta o un número de la lámina para ubicar la pieza.</p></div>
+    <div class="legend"><span><i style="background:var(--press)"></i>Presión</span><span><i style="background:var(--ret)"></i>Retorno / baja presión</span><span><i style="background:var(--ctl)"></i>Control / fluido atrapado</span><span>Colores como en el manual</span>
+      <a class="btn" href="./">← Simulador</a> <button class="btn" id="fsBtn">Pantalla completa</button></div>
   </header>
   <nav id="nav" aria-label="Modelos"></nav>
-  <div id="view">
-    <div id="labels"></div>
-    <div id="hint">Arrastra para girar · pellizca o rueda para acercar · dos dedos para mover</div>
-    <div id="err">No se pudo cargar el motor 3D. Revisa la conexión a internet y recarga la página.</div>
+  <div class="work" id="work">
+    <div id="view">
+      <div id="labels"></div>
+      <div id="hint">Arrastra para girar · dos dedos para mover · rueda o pellizco para acercar</div>
+      <div id="err">No se pudo cargar el motor 3D. Revisa la conexión a internet y recarga la página.</div>
+    </div>
+    <div id="sheet" aria-label="Lámina del manual">
+      <div class="sheetIn" id="sheetIn"><img id="sheetImg" alt=""><div id="hots"></div></div>
+      <div class="sheetCap" id="sheetCap"></div>
+    </div>
   </div>
   <aside>
     <h2 id="mTitle">—</h2>
     <p id="mDesc"></p>
+    <div class="selcard" id="selCard">Toca una etiqueta del modelo o un número de la lámina.</div>
     <div class="status" id="status" aria-live="polite"></div>
     <div id="params"></div>
     <div class="row">
       <button class="btn on" id="playBtn">Animación ON</button>
       <button class="btn" id="cutBtn">Corte: OFF</button>
       <button class="btn on" id="labBtn">Etiquetas ON</button>
+      <button class="btn" id="sheetBtn">Lámina: al lado</button>
       <button class="btn" id="resetBtn">Vista inicial</button>
     </div>
     <div class="ctrl"><label for="explode">Vista explosionada <b id="explodeV">0 %</b></label><input type="range" id="explode" min="0" max="100" value="0"></div>
     <p class="note" id="mNote"></p>
-    <p class="note">Las formas son esquemáticas: sirven para entender cómo fluye el fluido y cómo se mueven las piezas. Valores de presión, fuerzas y relaciones tomados del Training Manual Pilot, cap. 05 (rev. 4, 2024). No sustituye la documentación aprobada.</p>
+    <p class="note">Modelos esquemáticos, no a escala: reproducen la disposición de los cortes del manual para entender el flujo y el movimiento de las piezas. Láminas y valores: Training Manual Pilot, cap. 05 (rev. 4, 2024). No sustituye la documentación aprobada.</p>
   </aside>
 </div>
 
@@ -91,57 +122,83 @@ input[type=range]{width:100%;accent-color:var(--press)}
 (function(){
 "use strict";
 const $=id=>document.getElementById(id);
+const SHOW_SHEETS = false;   // la versión pública (GitHub) se publica sin las láminas del manual
 if(typeof THREE==="undefined"){ $("err").style.display="flex"; return; }
 const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const T=THREE, PI=Math.PI, clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
-const C={press:0xF08A3C, ret:0x4FA3E0, steel:0xA9B5C2, dark:0x5A6878, alu:0x8C9AA8, brass:0xC9A15A, red:0xF26B5B, green:0x5CC58A, amber:0xF2B33D, sema:0x7FB2E8};
+const C={press:0xE5483B, ret:0x46B85C, ctl:0xE8D44A, cyan:0x7FD6E8, by:0xA493E0, steel:0xA9B5C2, grey:0x8A9BB0, dark:0x5A6878, alu:0x9FAAB6, body:0xC4CAD2, red:0xF26B5B, amber:0xF2B33D, sema:0x7FB2E8, white:0xE9EEF3, brass:0xC9A15A};
 
-/* ---------- renderer / scene ---------- */
+/* ---------- renderer ---------- */
 const view=$("view");
 const renderer=new T.WebGLRenderer({antialias:true, alpha:true});
 renderer.setPixelRatio(Math.min(2, window.devicePixelRatio||1));
 renderer.localClippingEnabled=true;
 view.insertBefore(renderer.domElement, view.firstChild);
 const scene=new T.Scene();
-const camera=new T.PerspectiveCamera(38,1,0.1,200);
+const camera=new T.PerspectiveCamera(36,1,0.1,300);
 const controls=new T.OrbitControls(camera, renderer.domElement);
 controls.enableDamping=true; controls.dampingFactor=.08;
-scene.add(new T.HemisphereLight(0xdfe9f5, 0x1a2430, 0.85));
-const key=new T.DirectionalLight(0xffffff, 0.9); key.position.set(6,9,8); scene.add(key);
-const rim=new T.DirectionalLight(0x9fc4ff, 0.45); rim.position.set(-8,3,-6); scene.add(rim);
-const grid=new T.GridHelper(30, 30, 0x24364A, 0x162230); grid.position.y=-2.6; scene.add(grid);
-
-function resize(){ const w=view.clientWidth, h=view.clientHeight; renderer.setSize(w,h,false); camera.aspect=w/Math.max(h,1); camera.updateProjectionMatrix(); }
+scene.add(new T.HemisphereLight(0xe6eef8, 0x1a2430, 0.9));
+const key=new T.DirectionalLight(0xffffff, 0.85); key.position.set(6,10,9); scene.add(key);
+const rim=new T.DirectionalLight(0x9fc4ff, 0.45); rim.position.set(-9,3,-7); scene.add(rim);
+const grid=new T.GridHelper(40, 40, 0x24364A, 0x152130); grid.position.y=-3.6; scene.add(grid);
+function resize(){ const w=view.clientWidth, h=view.clientHeight; if(!w||!h) return; renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); }
 window.addEventListener("resize", resize);
 
 /* ---------- helpers ---------- */
-const UI={play:!reduce, cut:false, labels:true, explode:0};
+const UI={play:!reduce, cut:false, labels:true, explode:0, sheet:1};
 const CUT=new T.Plane(new T.Vector3(0,0,-1), 0);
-let shells=[], labels=[], exploders=[], root=null, model=null, P={};
-function M(color,o){ return new T.MeshStandardMaterial(Object.assign({color, metalness:.55, roughness:.38}, o||{})); }
-function shell(color,o){ const m=M(color, Object.assign({metalness:.7, roughness:.33, side:T.DoubleSide}, o||{})); shells.push(m); m.clippingPlanes = UI.cut? [CUT] : []; return m; }
-function fluid(color){ return new T.MeshStandardMaterial({color, metalness:.1, roughness:.25, emissive:color, emissiveIntensity:.35, transparent:true, opacity:.85}); }
+let shells=[], labels=[], exploders=[], flows=[], root=null, model=null, cur=null, P={}, selKey=null, selBox=null;
+function M(color,o){ return new T.MeshStandardMaterial(Object.assign({color, metalness:.5, roughness:.4}, o||{})); }
+function shell(color,o){ const m=M(color, Object.assign({metalness:.45, roughness:.5, side:T.DoubleSide}, o||{})); shells.push(m); m.clippingPlanes = UI.cut? [CUT] : []; return m; }
+function glass(color,op){ return new T.MeshStandardMaterial({color, metalness:.1, roughness:.15, transparent:true, opacity:op||.22, depthWrite:false, side:T.DoubleSide}); }
+function fluid(color){ return new T.MeshStandardMaterial({color, metalness:.05, roughness:.3, emissive:color, emissiveIntensity:.32, transparent:true, opacity:.9}); }
 function add(geo, mat, parent, x, y, z){ const m=new T.Mesh(geo,mat); m.position.set(x||0,y||0,z||0); (parent||root).add(m); return m; }
 function cylX(r, len, mat, parent, x, y, z, seg){ const m=add(new T.CylinderGeometry(r,r,len,seg||40), mat, parent, x, y, z); m.rotation.z=PI/2; return m; }
 function cylY(r, len, mat, parent, x, y, z){ return add(new T.CylinderGeometry(r,r,len,36), mat, parent, x, y, z); }
 function box(w,h,d,mat,parent,x,y,z){ return add(new T.BoxGeometry(w,h,d), mat, parent, x, y, z); }
+function ball(r,mat,parent,x,y,z){ return add(new T.SphereGeometry(r,24,16), mat, parent, x, y, z); }
 function group(parent,x,y,z){ const g=new T.Group(); g.position.set(x||0,y||0,z||0); (parent||root).add(g); return g; }
 const UPV=new T.Vector3(0,1,0);
 function rodMesh(r, mat, parent){ return add(new T.CylinderGeometry(r,r,1,20), mat, parent); }
 function setRod(m, a, b){ const d=new T.Vector3().subVectors(b,a); const L=d.length()||1e-4; m.position.copy(a).addScaledVector(d,.5); m.scale.set(1,L,1); m.quaternion.setFromUnitVectors(UPV, d.normalize()); }
 class Helix extends T.Curve{ constructor(r,h,turns){ super(); this.r=r; this.h=h; this.t=turns; }
   getPoint(t, target){ const p=target||new T.Vector3(); const a=t*this.t*2*PI; return p.set(this.r*Math.cos(a), t*this.h - this.h/2, this.r*Math.sin(a)); } }
-function spring(r,h,turns,wire,mat,parent,x,y,z){ return add(new T.TubeGeometry(new Helix(r,h,turns), 160, wire, 8, false), mat, parent, x, y, z); }
-function label(text, obj, off, cls){
-  const el=document.createElement("div"); el.className="lab"+(cls?" "+cls:""); el.textContent=text; $("labels").appendChild(el);
-  labels.push({el, obj, off: off||new T.Vector3()});
+function spring(r,h,turns,wire,mat,parent,x,y,z){ return add(new T.TubeGeometry(new Helix(r,h,turns), 140, wire, 8, false), mat, parent, x, y, z); }
+function springX(r,h,turns,wire,mat,parent,x,y,z){ const s=spring(r,h,turns,wire,mat,parent,x,y,z); s.rotation.z=PI/2; return s; }
+// manual sheet pixel (1277 × 725 crop) → scene units
+const V=(px,py,z)=>new T.Vector3((px-640)/100,(360-py)/100,z||0);
+const X=px=>(px-640)/100, Y=py=>(360-py)/100;
+const toV=p=>Array.isArray(p)?V(p[0],p[1],p[2]||0):p;
+function pathOf(pts){ const p=new T.CurvePath(); for(let i=0;i<pts.length-1;i++) p.add(new T.LineCurve3(toV(pts[i]),toV(pts[i+1]))); return p; }
+function pipe(pts, mat, r, parent){
+  const path=pathOf(pts); const g=group(parent||root);
+  add(new T.TubeGeometry(path, Math.max(12,pts.length*18), r||.065, 8, false), mat, g);
+  for(let i=1;i<pts.length-1;i++){ const v=toV(pts[i]); ball((r||.065)*1.02, mat, g, v.x, v.y, v.z); }
+  return g;
+}
+function setPipeMat(g, mat){ g.children.forEach(c=>c.material=mat); }
+function flow(pts, n, color, speed, active){
+  const path=pathOf(pts); const mat=new T.MeshStandardMaterial({color:0xffffff, emissive:color, emissiveIntensity:1.1});
+  const ps=[]; const geo=new T.SphereGeometry(.075,10,8); for(let i=0;i<n;i++) ps.push(add(geo,mat,root));
+  const f={path, ps, speed:speed||.18, active:active||(()=>true), t:0}; flows.push(f); return f;
+}
+function label(text, obj, off, cls, k){
+  const el=document.createElement("div"); el.className="lab"+(cls?" "+cls:""); el.tabIndex=0; el.setAttribute("role","button");
+  const num = SHOW_SHEETS && cur && cur.hot && k && cur.hot[k] ? Object.keys(cur.hot).indexOf(k)+1 : 0;
+  el.innerHTML = (num ? `<b>${num}</b>` : "") + text;
+  $("labels").appendChild(el);
+  const L={el, obj, off: off||new T.Vector3(), k:k||text, text}; labels.push(L);
+  el.addEventListener("click",()=>select(L.k));
+  el.addEventListener("keydown",e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); select(L.k);} });
+  return L;
 }
 function explodeOn(obj, vec){ obj.userData.base=obj.position.clone(); exploders.push({obj, vec}); }
 const tmp=new T.Vector3();
 function updateLabels(){
   const w=view.clientWidth, h=view.clientHeight;
   for(const L of labels){
-    if(!UI.labels){ L.el.style.display="none"; continue; }
+    if(!UI.labels && L.k!==selKey){ L.el.style.display="none"; continue; }
     tmp.copy(L.off); L.obj.localToWorld(tmp); tmp.project(camera);
     if(tmp.z>1 || tmp.z<-1){ L.el.style.display="none"; continue; }
     L.el.style.display="block"; L.el.style.left=((tmp.x*.5+.5)*w).toFixed(0)+"px"; L.el.style.top=((-tmp.y*.5+.5)*h - 8).toFixed(0)+"px";
@@ -149,269 +206,429 @@ function updateLabels(){
 }
 function particles(n, r, mat, parent){ const a=[]; const g=new T.SphereGeometry(r,10,8); for(let i=0;i<n;i++) a.push(add(g, mat, parent)); return a; }
 
+/* ---------- selection: 3D label ⇄ manual sheet ---------- */
+const focus={on:false, target:new T.Vector3()};
+function select(k){
+  selKey=k;
+  const L=labels.find(l=>l.k===k);
+  labels.forEach(l=>l.el.classList.toggle("sel", l.k===k));
+  document.querySelectorAll(".hs").forEach(h=>h.classList.toggle("sel", h.dataset.k===k));
+  if(selBox){ scene.remove(selBox); selBox=null; }
+  const info = cur && cur.info && cur.info[k];
+  const name = L ? L.text : (cur && cur.hot && cur.hot[k] ? cur.hot[k][2] : k);
+  $("selCard").innerHTML = `<b>${name}</b>${info? "<br>"+info : ""}`;
+  if(L){
+    selBox=new T.BoxHelper(L.obj, 0xFFD58A); scene.add(selBox);
+    const bb=new T.Box3().setFromObject(L.obj); bb.getCenter(focus.target); focus.on=true;
+  }
+}
+
 /* ================= MODELS ================= */
 const MODELS = [
-/* ---------------- 1. axial piston pump ---------------- */
-{ id:"bomba", name:"Bomba principal", sub:"9 pistones · caudal variable",
-  desc:"Bomba de pistones axiales accionada por la transmisión principal. El barril gira con 9 pistones; el ángulo del plato (backplate) fija la carrera y por lo tanto el caudal. La presión se mantiene constante en 103 bar: si sube, el pistón de control reduce el ángulo; si hay demanda, el resorte lo aumenta.",
-  note:"Activa «Corte» para ver los pistones dentro del barril. Los pistones naranjas están descargando hacia la lumbrera de salida; los azules están admitiendo desde la entrada.",
-  cam:[6.5,3.6,7.5],
-  params:[{id:"dem", label:"Demanda de caudal", min:0, max:100, value:55, unit:" %"}, {id:"rpm", label:"Velocidad (rotor)", min:0, max:100, value:100, unit:" %"}],
+
+/* ======== 1. VALVE BLOCK + RESERVOIR (manual p. 05-49) ======== */
+{ id:"bloque", group:"Fieles a la lámina", name:"Bloque de válvulas y depósito", sub:"SYS 1 · pág. 05-49",
+  img:"img/p49.jpg", page:"05-49 · Reservoir / valve block SYS 1, operación normal",
+  desc:"Reproducción en 3D del corte del manual: bloque de válvulas (izquierda) unido al depósito (derecha). Los conductos internos van en los mismos lugares que en la lámina; las partículas muestran el fluido recorriendo el circuito.",
+  note:"El bloque es semitransparente para ver los conductos. Baja el nivel para ver el pistón grande moverse y, bajo 0.20 l, cerrar la shut-off TRA. Sube la presión a 122 bar para abrir el alivio.",
+  cam:[2.2,1.2,13.5], target:[0.4,0,0], cut:true,
+  params:[{id:"lvl", label:"Nivel del depósito", min:0, max:80, value:62, fmt:v=>(v/100).toFixed(2)+" l"},
+          {id:"pump", label:"Bomba", min:0, max:1, value:1, step:1, fmt:v=>v?"ENTREGANDO":"PARADA"},
+          {id:"sol", label:"Solenoide (HYD TEST del otro sistema)", min:0, max:1, value:0, step:1, fmt:v=>v?"ENERGIZADA":"desenergizada"},
+          {id:"over", label:"Presión de la galería", min:90, max:130, value:103, fmt:v=>v+" bar"}],
+  hot:{ traout:[240,120,"TRA pressure out"], xdcr:[200,190,"Pressure switch / transducer"], mraout:[240,265,"MRA pressure out"],
+        sol:[245,312,"Solenoid valve"], mraret:[240,352,"MRA return"], filter:[278,450,"Filter"], meas:[235,535,"Pressure measuring port"],
+        check:[345,535,"Check valve"], pin:[408,600,"Pressure from pump"], pout:[462,600,"Outlet to pump"], shut:[370,232,"Shut-off valve"],
+        trashut:[588,190,"TRA shut-off valve"], trasw:[745,120,"TRA pressure switch"], pilot:[640,258,"Pilot valve"], hprel:[588,393,"High pressure relief valve"],
+        smallp:[620,430,"Small piston"], bigp:[812,460,"Low pressure piston"], res:[735,500,"Reservoir"], sight:[760,190,"Sight glass"],
+        bleed:[905,195,"Bleed valve"], lvl:[1010,390,"Level indicator"], vent:[880,552,"Vent screen"], lprel:[585,520,"Low pressure relief valve"], trar:[635,600,"TRA return"] },
+  info:{ traout:"Salida de presión del SYS 1 hacia el actuador del rotor de cola.", xdcr:"Transductor: indicación en el VMS. Switch: LOW PRESS bajo 69 bar, se apaga sobre 83 bar.",
+    mraout:"Salida de presión hacia la manifold backplate y los actuadores del rotor principal.", sol:"Al poner HYD TEST en el otro sistema se energiza y descarga la línea de control: la shut-off cierra.",
+    mraret:"Entrada del retorno de los actuadores del rotor principal.", filter:"Retiene la contaminación antes de que llegue a los actuadores.", meas:"Puerto de mantenimiento para medir la presión del lado de alta.",
+    check:"Justo después de la bomba: deja pasar hacia el bloque e impide el flujo inverso.", pin:"Línea P desde la bomba (103 bar).", pout:"Succión de la bomba, a la precarga del depósito (1.40–1.75 bar).",
+    shut:"Abre o corta el suministro a los actuadores del rotor principal. La manda la solenoide.", trashut:"Solo SYS 1: la manda la válvula piloto. Cierra si el nivel baja a 0.19–0.20 l (TR SHUT OFF).",
+    trasw:"Detecta el corte TRA y genera la caution HYD1 TR SHUT OFF.", pilot:"Movida por el pistón de baja presión del depósito; manda la shut-off TRA.",
+    hprel:"Abre a 122 bar y descarga a retorno: protege contra sobrepresión.", smallp:"Recibe la presión de operación y empuja al pistón grande (relación 1:60).",
+    bigp:"Presuriza el fluido del depósito a 1.40–1.75 bar. Su posición indica el nivel.", res:"0.8 l de fluido CM110 (MIL-PRF-5606F).", sight:"Muestra el aire atrapado: debe estar al menos a la mitad con fluido.",
+    bleed:"Para purgar el aire del sistema.", lvl:"Varilla con marcas MIN y MAX en la parte trasera.", vent:"Ventilación del lado sin fluido.", lprel:"Abre a 7.50 bar hacia un drenaje por la borda.", trar:"Retorno desde el actuador del rotor de cola." },
   build(){
-    const housing=group(); cylX(1.12,3.9,shell(C.dark),housing,-0.25);
-    explodeOn(housing,new T.Vector3(0,2.6,0));
-    label("Carcasa", housing, new T.Vector3(-0.3,1.15,0));
-    const shaft=cylX(.12,5.6,M(C.steel),root,-1.3);
-    label("Eje desde la transmisión (5429 rpm, ccw)", shaft, new T.Vector3(0,-2.6,0));
-    const sw=group(root,-2.0,0,0); const disc=cylX(.98,.16,M(0x7d8b99),sw); explodeOn(sw,new T.Vector3(-1.6,0,0));
-    label("Plato inclinado (backplate)", sw, new T.Vector3(0,-1.05,0));
-    const ctrl=cylY(.16,.6,M(C.press),root,-2.0,1.35,0); explodeOn(ctrl,new T.Vector3(-1.6,.8,0));
-    label("Pistón de control (presión)", ctrl, new T.Vector3(0,.35,0), "p");
-    const spr=spring(.16,.75,6,.035,M(C.steel),root,-2.0,-1.45,0); explodeOn(spr,new T.Vector3(-1.6,-.8,0));
-    label("Resorte", spr, new T.Vector3(0,-.45,0));
-    const barrel=group(root,0,0,0); cylX(.95,1.9,shell(C.alu,{metalness:.8}),barrel,0.05);
-    label("Barril (9 pistones)", barrel, new T.Vector3(.1,1.0,0));
-    const pist=[]; const pm=M(C.press), rm=M(C.ret);
-    for(let i=0;i<9;i++){ const a=i*2*PI/9; const p=group(barrel,0,.6*Math.cos(a),.6*Math.sin(a));
-      const body=cylX(.14,1.5,pm,p,0); const shoe=cylX(.2,.08,M(C.steel),p,-.78); pist.push({p,a,body}); }
-    const pp=group(root,1.15,0,0); cylX(.98,.14,M(0x6b7a89),pp); explodeOn(pp,new T.Vector3(1.8,0,0));
-    label("Placa de control (port plate)", pp, new T.Vector3(.1,1.05,0));
-    const kidG=(col,rot)=>{ const g=group(pp,.09,0,0); g.rotation.x=rot; const k=add(new T.TorusGeometry(.6,.1,10,48,PI*.8), fluid(col), g); k.rotation.y=PI/2; return g; };
-    const kp=kidG(C.press, .6*PI), kr=kidG(C.ret, 1.6*PI);
-    label("Salida P · 103 bar", kp, new T.Vector3(0,0,.6), "p");
-    label("Entrada R · succión", kr, new T.Vector3(0,0,.6), "r");
-    let rot=0;
-    return { update(dt){
-      const alpha=(2+16*P.dem/100)*PI/180;
-      sw.rotation.z=alpha;
-      ctrl.position.y -= (alpha-0.1)*0.6;
-      if(UI.play) rot += dt*(P.rpm/100)*3.2;
-      barrel.rotation.x=rot;
-      for(const q of pist){ const th=q.a+rot; const foot=-2.0+.08 - .6*Math.cos(th)*Math.tan(alpha); q.p.position.x = foot+.83; q.body.material = Math.sin(th)>0 ? pm : rm; }
-      const flow = Math.tan(alpha)/Math.tan(18*PI/180)*(P.rpm/100);
-      return `Ángulo del plato: ${(alpha*180/PI).toFixed(1)}° · caudal ≈ ${Math.round(flow*100)} % del máximo · presión 103 bar`;
+    const R=C.press, G=C.ret;
+    const mR=fluid(R), mG=fluid(G), mDead=fluid(0x5A6878);
+    const blk=group(); box(4.0,4.67,1.5,shell(C.body,{transparent:true,opacity:.33,depthWrite:false}),blk,X(462),Y(331),0);
+    explodeOn(blk,new T.Vector3(0,0,-2.4));
+    const res=group(); cylX(1.75,2.45,shell(0xB3BBC5,{transparent:true,opacity:.3,depthWrite:false}),res,X(783),Y(393),0);
+    cylX(1.82,.12,M(0x9AA6B3),res,X(898),Y(393),0); explodeOn(res,new T.Vector3(0,0,-2.4));
+    label("Depósito", res, new T.Vector3(X(735),Y(250),0), "r", "res");
+    const fl=cylX(1.68,1,mG,root,0,Y(393),0);
+    const big=group(root,X(812),Y(393),0); cylX(1.7,.32,M(C.grey),big);
+    label("Pistón de baja presión", big, new T.Vector3(0,-1.5,0), "", "bigp");
+    const rod=rodMesh(.08,M(C.grey),root);
+    const tube=cylX(.3,2.55,glass(0xCFE3F5,.25),root,X(1035),Y(390),0);
+    const ring=(px,col)=>{ const r=add(new T.TorusGeometry(.32,.025,8,32),M(col),root,X(px),Y(390),0); r.rotation.y=PI/2; return r; };
+    ring(967,C.amber); ring(1088,C.ret);
+    label("Indicador de nivel MIN / MAX", tube, new T.Vector3(0,.35,0), "", "lvl");
+    cylX(.45,1.7,mG,root,X(515),Y(393),0);
+    const hpc=cylX(.45,.6,mR,root,X(630),Y(393),0);
+    const small=cylX(.47,.28,M(C.grey),root,X(622),Y(393),0); label("Pistón pequeño (alta presión)", small, new T.Vector3(0,0,-.55), "", "smallp");
+    const hprel=group(root,X(588),Y(393),0); cylX(.2,.5,M(C.white),hprel); const hpBall=ball(.12,M(0x111111),hprel,.08,0,0); springX(.1,.25,5,.02,M(C.steel),hprel,-.12,0,0);
+    label("Alivio de alta · 122 bar", hprel, new T.Vector3(0,.3,0), "p", "hprel");
+    const arrow=rodMesh(.2,M(C.grey),root);
+    const pilot=group(root,X(500),Y(260),0); box(.9,.3,.5,M(R),pilot); explodeOn(pilot,new T.Vector3(0,0,1.6));
+    const pRod=rodMesh(.06,M(C.grey),root);
+    label("Válvula piloto", pilot, new T.Vector3(.2,.25,0), "", "pilot");
+    const shut=group(root,X(372),Y(232),0); cylX(.2,.85,M(C.grey),shut); const shutSp=cylX(.13,.3,M(C.white),shut,0,0,0); springX(.12,.3,5,.025,M(R),shut,.55,0,0); explodeOn(shut,new T.Vector3(0,0,1.6));
+    label("Shut-off", shut, new T.Vector3(0,.3,0), "", "shut");
+    const tra=group(root,X(590),Y(192),0); cylX(.17,.75,M(C.grey),tra); const traSp=cylX(.11,.25,M(C.white),tra); springX(.1,.28,5,.02,M(C.steel),tra,.5,0,0); explodeOn(tra,new T.Vector3(0,0,1.6));
+    label("Shut-off TRA", tra, new T.Vector3(0,.3,0), "", "trashut");
+    const trasw=group(root,X(745),Y(120),0); box(.9,.36,.5,M(C.white),trasw); springX(.1,.3,5,.02,M(C.steel),trasw,0,0,.0); explodeOn(trasw,new T.Vector3(0,.8,0));
+    label("Switch de presión TRA", trasw, new T.Vector3(0,.3,0), "", "trasw");
+    const fit=(px,py,len,k,txt,cls)=>{ const g=group(root,X(px)-len/2,Y(py),0); cylX(.13,len,M(0xB7BFC9,{metalness:.8}),g); for(let i=0;i<4;i++) cylX(.15,.04,M(0x8892A0),g,-len/2+.08+i*.08); explodeOn(g,new T.Vector3(-1.2,0,0)); label(txt,g,new T.Vector3(-len/2,.22,0),cls,k); return g; };
+    fit(262,120,.35,"traout","A rotor de cola (TRA)","p"); fit(262,265,.35,"mraout","A actuadores (MRA)","p"); fit(262,352,.35,"mraret","Retorno MRA","r"); fit(262,535,.3,"meas","Puerto de medición","p");
+    const xd=group(root,X(200),Y(190),0); cylX(.32,1.25,M(0xD5D9DE),xd); springX(.12,.4,6,.02,M(C.steel),xd,.15,0,0); cylX(.2,.3,M(0x8892A0),xd,-.75,0,0); explodeOn(xd,new T.Vector3(-1.4,.4,0));
+    label("Switch / transductor", xd, new T.Vector3(-.3,.38,0), "", "xdcr");
+    const so=group(root,X(250),Y(312),0); cylX(.3,1.1,M(0xD5D9DE),so); const soBall=ball(.13,M(0x111111),so,.68,0,0); springX(.12,.4,6,.02,M(C.steel),so,.15,0,0); explodeOn(so,new T.Vector3(-1.4,-.2,0));
+    label("Válvula solenoide", so, new T.Vector3(-.3,-.42,0), "", "sol");
+    const filt=group(root,X(278),Y(450),0); box(.85,.82,.6,M(0x9B2C24),filt); for(let i=0;i<7;i++) box(.04,.7,.62,M(0x6E1E19),filt,-.33+i*.11,0,0); explodeOn(filt,new T.Vector3(-1.6,-.6,0));
+    label("Filtro", filt, new T.Vector3(-.3,.48,0), "p", "filter");
+    const chk=group(root,X(345),Y(535),0); cylX(.17,.55,M(C.white),chk); const chkBall=ball(.11,M(0x111111),chk,-.12,0,0); springX(.09,.25,5,.02,M(R),chk,.1,0,0); explodeOn(chk,new T.Vector3(0,-1.2,0));
+    label("Antirretorno", chk, new T.Vector3(0,-.32,0), "p", "check");
+    const pin=cylY(.13,.7,M(0xB7BFC9,{metalness:.8}),root,X(408),Y(598),0); label("Desde la bomba", pin, new T.Vector3(0,-.42,0), "p", "pin");
+    const pout=cylY(.13,.7,M(0xB7BFC9,{metalness:.8}),root,X(462),Y(598),0); label("A la bomba", pout, new T.Vector3(0,-.42,0), "r", "pout");
+    const lp=group(root,X(585),Y(515),0); cylY(.14,.6,M(C.white),lp); ball(.1,M(0x111111),lp,0,.18,0); spring(.08,.28,5,.02,M(C.steel),lp,0,-.08,0); explodeOn(lp,new T.Vector3(0,-1.2,0));
+    label("Alivio de baja · 7.5 bar", lp, new T.Vector3(0,-.4,0), "", "lprel");
+    const trar=cylY(.12,1.0,M(0xB7BFC9,{metalness:.8}),root,X(635),Y(560),0); label("Retorno TRA", trar, new T.Vector3(0,-.55,0), "r", "trar");
+    const blv=group(root,X(905),Y(195),0); cylX(.2,.65,M(C.white),blv); ball(.12,M(0x111111),blv,-.12,0,0); explodeOn(blv,new T.Vector3(1,.6,0));
+    label("Válvula de purga", blv, new T.Vector3(.1,.3,0), "", "bleed");
+    const sg=cylX(.14,1.9,fluid(0x8FE0A0),root,X(770),Y(190),0); label("Visor (sight glass)", sg, new T.Vector3(0,.25,0), "r", "sight");
+    const vent=box(.25,.12,.5,M(0x55606C),root,X(880),Y(556),0); label("Rejilla de ventilación", vent, new T.Vector3(0,-.15,0), "", "vent");
+    // internal passages traced from the sheet
+    [ [[408,620],[408,535],[300,535],[300,492]], [[240,535],[300,535]], [[300,408],[300,385],[365,385],[365,250]],
+      [[365,295],[655,295],[655,348]], [[455,260],[420,260],[420,295]], [[345,312],[365,312]], [[365,250],[365,232]] ].forEach(p=>pipe(p,mR));
+    const outP=[ [[340,232],[300,232],[300,265],[262,265]], [[300,232],[300,190],[262,190]] ].map(p=>pipe(p,mR));
+    const traP=[ [[300,190],[495,190],[495,215],[560,215],[560,195]], [[585,175],[585,120],[262,120]], [[585,120],[700,120]] ].map(p=>pipe(p,mR));
+    [ [[262,352],[330,352],[330,380],[430,380]], [[462,620],[462,470],[405,470],[405,380]], [[405,465],[680,465]], [[320,232],[320,352]], [[680,245],[680,190],[700,190]], [[635,610],[635,465]], [[585,490],[585,465]] ].forEach(p=>pipe(p,mG));
+    flow([[408,640],[408,535],[300,535],[300,410],[300,385],[365,385],[365,232],[300,232],[300,265],[200,265]], 16, R, .12, ()=>P.pump && !P.sol);
+    flow([[408,640],[408,535],[300,535],[300,410],[300,385],[365,385],[365,295],[495,295]], 7, R, .16, ()=>P.pump && P.sol);
+    flow([[300,190],[495,190],[495,215],[560,215],[585,192],[585,120],[200,120]], 10, R, .12, ()=>P.pump && P.lvl>=20);
+    flow([[200,352],[330,352],[330,380],[405,380],[405,465],[700,465],[740,430]], 14, G, .12, ()=>P.pump);
+    flow([[700,480],[462,480],[462,640]], 8, G, .16, ()=>P.pump);
+    flow([[655,295],[655,348],[600,393],[540,393],[470,400]], 6, R, .3, ()=>P.pump && P.over>=122);
+    return { update(){
+      const f=clamp(P.lvl/80,0,1); const px=X(700)+f*(X(830)-X(700));
+      fl.scale.y=Math.max(.02,px-X(668)); fl.position.x=(X(668)+px)/2;
+      big.position.x=px+.16;
+      setRod(rod,new T.Vector3(px+.32,Y(393),0),new T.Vector3(px+2.45,Y(393),0));
+      setRod(arrow,new T.Vector3(X(640),Y(393),0),new T.Vector3(px,Y(393),0));
+      setRod(pRod,new T.Vector3(X(545),Y(258),0),new T.Vector3(Math.min(px-.05,X(740)),Y(258),0));
+      const traOpen=P.lvl>=20;
+      traSp.position.x = traOpen? -.18 : .12; traSp.material.color.setHex(traOpen? C.white : C.red);
+      shutSp.position.x = P.sol? .15 : -.2; shutSp.material.color.setHex(P.sol? C.red : C.white);
+      outP.forEach(g=>setPipeMat(g, P.sol||!P.pump? mDead : mR)); traP.forEach(g=>setPipeMat(g, traOpen&&P.pump? mR : mDead));
+      chkBall.position.x = P.pump? -.02 : -.14;
+      hpBall.position.x = P.over>=122? -.05 : .08; hpc.material = P.pump? mR : mDead;
+      soBall.material.color.setHex(P.sol? C.amber : 0x111111);
+      const pre=(P.pump? Math.min(P.over,122) : 0)/60;
+      return `Nivel ${(P.lvl/100).toFixed(2)} l · precarga ${pre.toFixed(2)} bar · shut-off ${P.sol?"CERRADA":"abierta"} · TRA ${traOpen?"abierta":"CERRADA (TR SHUT OFF)"}${P.over>=122?" · ALIVIO 122 bar ABIERTO":""}`;
     }};
   }},
 
-/* ---------------- 2. aux gear pump ---------------- */
-{ id:"aux", name:"Bomba auxiliar", sub:"engranajes · eléctrica",
-  desc:"Bomba eléctrica de engranajes, bajo el depósito del SYS 1. Se usa en tierra para el chequeo de libre movimiento de los mandos sin motores (máx. 5 min). Toma aceite del manifold del SYS 1 y lo entrega a ≈85 bar; el exceso vuelve al depósito.",
-  note:"El fluido viaja atrapado entre los dientes y la carcasa, por fuera de los engranajes, desde la entrada (azul) hasta la salida (naranja).",
-  cam:[0.5,2.2,7.5],
-  params:[{id:"on", label:"Switch AUX HYD PUMP", min:0, max:1, value:1, step:1, unit:"", fmt:v=>v?"ON":"OFF"}],
+/* ======== 2. MECHANICAL-HYDRAULIC ACTUATOR (manual p. 05-57) ======== */
+{ id:"actuador", group:"Fieles a la lámina", name:"Actuador mecánico-hidráulico", sub:"rotor principal · pág. 05-57",
+  img:"img/p57.jpg", page:"05-57 · Mechanical hydraulic actuator",
+  desc:"El actuador de un eje del rotor principal tal como en el corte del manual: spools de SYS 2 (izquierda) y SYS 1 (derecha) arriba, válvulas bypass/shut-off en el medio, cilindros de refuerzo abajo y la palanca de control a la derecha. Las líneas internas cambian de color según el spool.",
+  note:"Mueve el mando: la palanca gira, la biela desplaza los spools, la presión entra a un lado de los pistones y el vástago se mueve en sentido contrario a la entrada hasta que el spool vuelve a neutro (entrada a la derecha, pistón a la izquierda, como dice el manual).",
+  cam:[1.2,0.4,13.5], target:[0.6,-.3,0], cut:true,
+  params:[{id:"in", label:"Mando del piloto", min:-100, max:100, value:0, fmt:v=>v+" %"},
+          {id:"auto", label:"Movimiento automático", min:0, max:1, value:1, step:1, fmt:v=>v?"ON":"OFF"},
+          {id:"s2", label:"SYS 2 (cilindro izquierdo)", min:0, max:1, value:1, step:1, fmt:v=>v?"con presión":"sin presión → bypass"},
+          {id:"jam", label:"Spool del SYS 1 atascado", min:0, max:1, value:0, step:1, fmt:v=>v?"SÍ → override":"no"},
+          {id:"gust", label:"Ráfaga: carga mayor que la fuerza", min:0, max:1, value:0, step:1, fmt:v=>v?"SÍ → check valves":"no"}],
+  hot:{ input:[370,20,"Control input"], inrod:[700,45,"Input rod"], conrod:[800,180,"Connecting rod"], lever:[990,300,"Control lever"],
+        spool:[380,255,"Control spool"], sleeve:[310,240,"Control spool sleeve"], test:[190,255,"Test button"], ctlline:[470,330,"Control line"],
+        bypass:[300,410,"Bypass / shut-off valve"], boost:[725,545,"Boost piston"], check:[430,605,"Check valve"],
+        r2:[370,640,"Return port R2"], p2:[430,665,"Pressure port P2"], r1:[765,640,"Return port R1"], p1:[705,665,"Pressure port P1"], output:[1085,545,"Output"] },
+  info:{ input:"Aquí entra el mando del piloto (y de los SEMA).", inrod:"Lleva la entrada hasta la parte superior de la palanca de control.", conrod:"Une la palanca con los spools de ambos sistemas.",
+    lever:"Pivota sobre el vástago de salida: compara entrada y salida y abre o cierra los spools (servo de seguimiento).", spool:"Dirige la presión a una cámara y abre la otra a retorno. En neutro bloquea los pistones.",
+    sleeve:"Sostenida por dos resortes: si el spool se atasca, la entrada desplaza spool y camisa (override) y ese sistema pasa a bypass.", test:"Dos por eje: sin presión, se empuja para verificar que la camisa se mueve libremente.",
+    ctlline:"Mantiene cerrado el bypass y abierta la shut-off mientras hay presión.", bypass:"Sin presión: une ambas cámaras (sin bloqueo). Con presión: cierra el bypass y abre la shut-off al spool.",
+    boost:"Pistones de SYS 1 y SYS 2 sobre un vástago común: 3150 N por sistema, 6300 N con ambos.", check:"Si una ráfaga supera la fuerza del actuador, cierra y atrapa el fluido: el pistón no cede.",
+    r2:"Retorno del SYS 2.", p2:"Presión del SYS 2 (103 bar).", r1:"Retorno del SYS 1.", p1:"Presión del SYS 1 (103 bar).", output:"Salida reforzada hacia el mixing lever." },
   build(){
-    function gearShape(n, r1, r2){
-      const s=new T.Shape(); const step=2*PI/n;
-      for(let i=0;i<n;i++){ const a=i*step;
-        const pts=[[r1,a],[r2,a+step*.2],[r2,a+step*.45],[r1,a+step*.65],[r1,a+step]];
-        pts.forEach(([r,an],j)=>{ const x=r*Math.cos(an), y=r*Math.sin(an); if(i===0&&j===0) s.moveTo(x,y); else s.lineTo(x,y); }); }
-      return s;
-    }
+    const mR=fluid(C.press), mG=fluid(C.ret), mY=fluid(C.ctl), mC=fluid(C.cyan), mB=fluid(C.by), mD=fluid(0x5A6878);
+    const hous=group(); box(2.55,4.4,1.6,shell(0xBFC5CC,{transparent:true,opacity:.3,depthWrite:false}),hous,X(397.5),Y(415),0);
+    box(3.35,4.95,1.6,shell(0xB5BCC4,{transparent:true,opacity:.3,depthWrite:false}),hous,X(692.5),Y(387.5),0); explodeOn(hous,new T.Vector3(0,0,-2.6));
+    const sleeveL=cylX(.3,3.2,glass(0xDDE7F1,.3),root,X(345),Y(255),0); const sleeveR=cylX(.3,3.2,glass(0xDDE7F1,.3),root,X(770),Y(255),0);
+    label("Camisa del spool", sleeveL, new T.Vector3(0,0,-.4), "", "sleeve");
+    const spool=group(root,0,Y(255),0); cylX(.09,7.2,M(C.steel),spool,X(562),0,0); [300,380,455,640,720,800].forEach(px=>cylX(.24,.22,M(C.white),spool,X(px),0,0));
+    label("Control spool", spool, new T.Vector3(X(380),.35,0), "", "spool");
+    springX(.2,.75,6,.03,M(C.ret),root,X(245),Y(255),0); springX(.2,.75,6,.03,M(C.ret),root,X(880),Y(255),0);
+    const tb=cylX(.2,.35,M(C.white),root,X(180)-.1,Y(255),0); cylX(.2,.35,M(C.white),root,X(945)+.1,Y(255),0);
+    label("Botón de prueba", tb, new T.Vector3(0,.3,0), "", "test");
+    const bpL=group(root,X(377),Y(410),0); cylX(.17,1.85,M(0x8C96A0),bpL); const bpLsp=cylX(.12,.5,M(C.white),bpL,-.3,0,0);
+    const bpR=group(root,X(752),Y(410),0); cylX(.17,1.85,M(0x8C96A0),bpR); const bpRsp=cylX(.12,.5,M(C.white),bpR,.3,0,0);
+    label("Bypass / shut-off", bpL, new T.Vector3(-.6,.3,0), "", "bypass");
+    const cyl=[]; [[X(300),X(525),X(410)],[X(610),X(825),X(725)]].forEach(([a,b,mid])=>{
+      cylX(.44,b-a,glass(0xDDE7F1,.28),root,(a+b)/2,Y(545),0);
+      const A=cylX(.4,1,mY,root,0,Y(545),0), Bc=cylX(.4,1,mY,root,0,Y(545),0), pis=cylX(.42,.12,M(C.steel),root,mid,Y(545),0);
+      cyl.push({a,b,A,B:Bc,pis,mid});
+    });
+    label("Pistón de refuerzo", cyl[1].pis, new T.Vector3(.5,0,0), "", "boost");
+    const rod=cylX(.13,7.9,M(C.steel,{metalness:.9}),root,X(550),Y(545),0);
+    const chkL=ball(.11,M(C.press),root,X(430),Y(605),0), chkR=ball(.11,M(C.press),root,X(700),Y(605),0);
+    spring(.08,.22,5,.02,M(C.steel),root,X(430),Y(588),0); spring(.08,.22,5,.02,M(C.steel),root,X(700),Y(588),0);
+    label("Check valve", chkL, new T.Vector3(0,-.2,0), "p", "check");
+    const port=(px,k,t,cls)=>{ const m=cylY(.1,.6,M(0xB7BFC9,{metalness:.8}),root,X(px),Y(690),0); label(t,m,new T.Vector3(0,-.35,0),cls,k); return m; };
+    port(370,"r2","R2","r"); port(430,"p2","P2","p"); port(765,"r1","R1","r"); port(705,"p1","P1","p");
+    const chanL=[ [[330,270],[330,340],[305,340],[305,515]], [[405,270],[405,350],[515,350],[515,515]] ].map(p=>pipe(p,mY,.06));
+    const chanR=[ [[735,270],[735,350],[625,350],[625,515]], [[800,270],[800,340],[820,340],[820,515]] ].map(p=>pipe(p,mY,.06));
+    const p2=pipe([[430,690],[430,420],[430,380],[375,380],[375,270]],mR,.06), p1=pipe([[705,690],[705,420],[705,380],[760,380],[760,270]],mR,.06);
+    pipe([[370,690],[370,380],[455,380],[455,270]],mG,.06); pipe([[765,690],[765,380],[690,380],[690,270]],mG,.06);
+    const clL=pipe([[470,270],[470,410]],mC,.05), clR=pipe([[665,270],[665,410]],mC,.05);
+    label("Línea de control", clL, V(470,340,.1), "", "ctlline");
+    const lev=rodMesh(.09,M(C.sema),root), inRod=rodMesh(.07,M(C.sema),root), conRod=rodMesh(.05,M(0x8892A0),root), inLev=rodMesh(.09,M(C.sema),root), outLk=rodMesh(.1,M(C.sema),root);
+    const knob=ball(.13,M(C.sema),root), outK=ball(.16,M(C.white),root), cKnob=ball(.06,M(C.white),root);
+    label("Entrada de mando", knob, new T.Vector3(0,.25,0), "", "input");
+    label("Varilla de entrada", inRod, new T.Vector3(0,0,0), "", "inrod");
+    label("Biela", conRod, new T.Vector3(0,0,0), "", "conrod");
+    label("Palanca de control", lev, new T.Vector3(0,0,0), "", "lever");
+    label("Salida al mixing lever", outK, new T.Vector3(0,.3,0), "", "output");
+    const st={xin:0, xp:0, e:0, t:0};
+    flow([[430,700],[430,380],[375,380],[375,275]], 6, C.press, .25, ()=>P.s2 && Math.abs(st.e)>1 && !P.gust);
+    flow([[705,700],[705,380],[760,380],[760,275]], 6, C.press, .25, ()=>!P.jam && Math.abs(st.e)>1 && !P.gust);
+    flow([[455,275],[455,380],[370,380],[370,700]], 6, C.ret, .25, ()=>P.s2 && Math.abs(st.e)>1 && !P.gust);
+    flow([[690,275],[690,380],[765,380],[765,700]], 6, C.ret, .25, ()=>!P.jam && Math.abs(st.e)>1 && !P.gust);
+    return { update(dt){
+      st.t += UI.play? dt : 0;
+      st.xin = P.auto ? 18*Math.sin(st.t*.6) : P.in/100*20;          // lever-top displacement (sheet px)
+      const nSys = (P.s2?1:0) + (P.jam?0:1);
+      st.e = .73*st.xin + .27*st.xp;                                  // spool displacement from the lever geometry
+      const v = P.gust ? 0 : (nSys>0 ? -st.e*2.2 : -st.e*6);
+      if(UI.play || !P.auto) st.xp = clamp(st.xp + v*dt, -60, 60);
+      const ex=st.xp/100, ei=st.xin/100, es=st.e/100;
+      rod.position.x=X(550)+ex;
+      cyl.forEach((c,i)=>{
+        const px=c.mid+ex; c.pis.position.x=px;
+        const la=px-c.a-.06, lb=c.b-px-.06;
+        c.A.scale.y=Math.max(.02,la); c.A.position.x=c.a+la/2; c.B.scale.y=Math.max(.02,lb); c.B.position.x=c.b-lb/2;
+        const byp = i===0 ? !P.s2 : !!P.jam;
+        let ma=mY, mb=mY;
+        if(byp){ ma=mb=mB; } else if(!P.gust && st.e>1){ ma=mG; mb=mR; } else if(!P.gust && st.e<-1){ ma=mR; mb=mG; }
+        c.A.material=ma; c.B.material=mb;
+        (i===0?chanL:chanR).forEach((g,j)=>setPipeMat(g, j===0? ma : mb));
+      });
+      setPipeMat(p2, P.s2? mR : mD); setPipeMat(p1, P.jam? mB : mR);
+      setPipeMat(clL, P.s2? mC : mD); setPipeMat(clR, P.jam? mD : mC);
+      bpLsp.position.x = P.s2? -.3 : .3; bpRsp.position.x = P.jam? -.3 : .3;
+      spool.position.x = es*.8;
+      sleeveR.position.x = X(770) + (P.jam? es*.8 : 0);
+      chkL.material.emissive.setHex(P.gust? 0x881100 : 0x000000); chkR.material.emissive.setHex(P.gust? 0x881100 : 0x000000);
+      const T0=new T.Vector3(X(990)+ei, Y(45), 0), B0=new T.Vector3(X(990)+ex, Y(545), 0);
+      const Cp=T0.clone().lerp(B0,.27);
+      setRod(lev,T0,B0); setRod(inRod,new T.Vector3(X(395)+ei*.3,Y(45),0),T0);
+      setRod(inLev,new T.Vector3(X(370),Y(155),0),new T.Vector3(X(395)+ei*.3,Y(45),0)); knob.position.set(X(370)+ei*.3,Y(20),0);
+      setRod(conRod,Cp,new T.Vector3(X(570)+es*.8,Y(180),0)); cKnob.position.copy(Cp);
+      setRod(outLk,B0,new T.Vector3(X(1085)+ex,Y(545),0)); outK.position.set(X(1085)+ex,Y(545),0);
+      const s = P.gust? "Ráfaga: la carga supera la fuerza → check valves CERRADAS, el pistón mantiene su posición" :
+        nSys===0? "Sin presión: ambos sistemas en bypass, sin refuerzo" :
+        Math.abs(st.e)<1 ? "Spool en NEUTRO: fluido atrapado (amarillo), pistón bloqueado" :
+        `Spool desplazado: presión (rojo) a un lado, retorno (verde) al otro · el pistón va hacia ${st.e>0?"la izquierda":"la derecha"}`;
+      return `${s} · fuerza disponible ${nSys*3150} N${P.jam?" · SYS 1 en bypass por override":""}`;
+    }};
+  }},
+
+/* ======== 3. AXIAL PISTON PUMP (manual p. 05-37) ======== */
+{ id:"bomba", group:"Fieles a la lámina", name:"Bomba de pistones", sub:"principio · pág. 05-37",
+  img:"img/p37.jpg", page:"05-37 · Hydraulic pump principle",
+  desc:"La bomba como en la vista 3D del manual: eje vertical, barril con 9 pistones, backplate giratorio sobre el backplate fijo que bascula. El pistón de control (alimentado desde la salida) y el resorte con su tornillo de ajuste fijan el ángulo: más ángulo = más carrera = más caudal, a presión constante.",
+  note:"Activa «Corte» para ver dentro del barril. Los pistones rojos están descargando hacia la salida; los verdes, admitiendo desde la entrada. La carcasa amarilla representa el fluido de la carcasa, que sale por el drenaje (case drain).",
+  cam:[6.2,4.2,8.2], target:[0,.2,0], cut:false,
+  params:[{id:"dem", label:"Demanda de caudal", min:0, max:100, value:60, fmt:v=>v+" %"}, {id:"rpm", label:"Velocidad (rotor)", min:0, max:100, value:100, fmt:v=>v+" %"}],
+  hot:{ outlet:[330,215,"Outlet port"], inlet:[440,215,"Inlet port"], piston:[330,330,"Piston or plunger"], spring:[240,375,"Spring"],
+        adj:[185,385,"Adjustment screw"], ctrl:[575,355,"Control piston"], cased:[505,438,"Case drain"], fixed:[380,420,"Backplate (fixed part)"],
+        rotp:[440,430,"Backplate (rotating part)"], seal:[350,495,"Seal drain"], shaft:[385,525,"Splined shaft"], barrel:[1000,390,"Barrel"], tilt:[840,470,"Fluid flow increase / decrease"] },
+  info:{ outlet:"Salida a 103 bar hacia el bloque de válvulas.", inlet:"Entrada desde el depósito a 1.40–1.75 bar.", piston:"9 pistones huecos con orificio: el fluido pasa y los equilibra hidrostáticamente.",
+    spring:"Empuja el backplate hacia más ángulo (más caudal).", adj:"Ajustado de fábrica.", ctrl:"Recibe la presión de salida y reduce el ángulo cuando la presión sube.",
+    cased:"Flujo mínimo por la carcasa para enfriar y lubricar; va al retorno del depósito.", fixed:"Bascula sobre su eje: su ángulo determina la carrera de los pistones.",
+    rotp:"Gira con los pistones, sujetos con zapatas de rótula.", seal:"Drenaje del sello del eje, por la borda.", shaft:"Eje estriado accionado por la transmisión principal: 5429 rpm, antihorario.",
+    barrel:"Gira con el eje; los pistones admiten y descargan por la placa de control fija.", tilt:"Inclinar más el backplate aumenta el caudal; menos inclinación lo reduce." },
+  build(){
+    const mR=fluid(C.press), mG=fluid(C.ret);
+    const hous=group(); box(4.4,3.6,3.4,shell(0xE8D44A,{transparent:true,opacity:.16,depthWrite:false}),hous,0,.1,0); explodeOn(hous,new T.Vector3(0,0,-3));
+    const shaft=cylY(.15,5.2,M(C.steel,{metalness:.85}),root,0,.4,0); label("Eje estriado (5429 rpm)", shaft, new T.Vector3(0,-2.55,0), "", "shaft");
+    const barrel=group(root,0,.75,0); cylY(1.05,1.3,shell(C.alu,{metalness:.75}),barrel);
+    for(let i=0;i<9;i++){ const a=i*2*PI/9; cylY(.16,.03,M(0x222A33),barrel,.65*Math.cos(a),.66,.65*Math.sin(a)); }
+    label("Barril", barrel, new T.Vector3(1.05,0,0), "", "barrel");
+    cylY(1.06,.1,M(0x6F8FB8),root,0,1.45,0);
+    const kid=(col,flip)=>{ const g=group(root,0,1.52,0); g.rotation.y=flip?PI:0; const k=add(new T.TorusGeometry(.65,.1,10,48,PI*.8), fluid(col), g); k.rotation.x=PI/2; k.rotation.z=PI*.1; return g; };
+    kid(C.press,false); kid(C.ret,true);
+    const outP=pipe([new T.Vector3(0,1.55,.65),new T.Vector3(0,2.7,.65),new T.Vector3(1.2,2.7,.65)],mR,.12);
+    const inP=pipe([new T.Vector3(0,1.55,-.65),new T.Vector3(0,2.7,-.65),new T.Vector3(-1.2,2.7,-.65)],mG,.12);
+    label("Salida (al bloque)", outP, new T.Vector3(1.2,2.9,.65), "p", "outlet"); label("Entrada (del depósito)", inP, new T.Vector3(-1.2,2.9,-.65), "r", "inlet");
+    const sw=group(root,0,-.55,0); const rotDisc=cylY(1.0,.1,M(0x9BB7D6),sw,0,.06,0); const fixDisc=cylY(1.25,.14,M(0x7FA0C6),sw,0,-.08,0);
+    cylY(.08,.9,M(0x7FA0C6),sw,0,.5,0);
+    label("Backplate giratorio", rotDisc, new T.Vector3(.9,.1,0), "", "rotp"); label("Backplate fijo (bascula)", fixDisc, new T.Vector3(-1.1,-.15,0), "", "fixed");
+    const trun=cylY(.05,3.6,M(0x3A5068),root,0,-.55,0); trun.rotation.x=PI/2; ball(.12,M(0x6F8FB8),root,0,-.55,1.8); ball(.12,M(0x6F8FB8),root,0,-.55,-1.8);
+    label("Eje de basculamiento: + / − caudal", trun, new T.Vector3(0,.25,1.6), "", "tilt");
+    const pist=[]; for(let i=0;i<9;i++){ const m=cylY(.13,1.5,mR,root); const shoe=cylY(.18,.06,M(C.steel),root); pist.push({m,shoe,a:i*2*PI/9}); }
+    label("Pistón (plunger)", pist[0].m, new T.Vector3(0,.5,0), "", "piston");
+    const cp=group(root,2.25,.1,0); cylX(.32,.8,shell(0xC9CED6),cp); const cpPis=cylX(.24,.3,M(C.press),cp,0,0,0); explodeOn(cp,new T.Vector3(1.2,0,0));
+    label("Pistón de control", cp, new T.Vector3(0,.4,0), "p", "ctrl");
+    pipe([new T.Vector3(1.2,2.7,.65),new T.Vector3(2.25,2.7,.65),new T.Vector3(2.25,.45,.65),new T.Vector3(2.25,.45,0)],mR,.07);
+    const sp=springX(.2,1,7,.035,M(C.steel),root,-1.6,.1,0); label("Resorte", sp, new T.Vector3(0,0,.3), "", "spring");
+    const adj=group(root,-2.45,.1,0); cylX(.12,.5,M(0x8892A0),adj); box(.12,.5,.5,M(0x55606C),adj,-.25,0,0); explodeOn(adj,new T.Vector3(-1.2,0,0));
+    label("Tornillo de ajuste (fábrica)", adj, new T.Vector3(-.2,.35,0), "", "adj");
+    const cpRod=rodMesh(.06,M(C.steel),root), spRod=rodMesh(.06,M(C.steel),root);
+    const cd=pipe([new T.Vector3(2.2,-1.1,0),new T.Vector3(3.0,-1.1,0)],fluid(C.ctl),.1); label("Drenaje de carcasa", cd, new T.Vector3(3.0,-1.1,0), "", "cased");
+    const sd=pipe([new T.Vector3(.35,-1.6,0),new T.Vector3(.35,-2.0,0),new T.Vector3(.8,-2.0,0)],fluid(0xB9A6E8),.06); label("Drenaje de sello", sd, new T.Vector3(.8,-2.0,0), "", "seal");
+    let rot=0;
+    return { update(dt){
+      const alpha=(3+15*P.dem/100)*PI/180;
+      sw.rotation.z=-alpha;
+      if(UI.play) rot += dt*(P.rpm/100)*3;
+      barrel.rotation.y=-rot;
+      const yB=-.55+.11;
+      for(const q of pist){ const th=q.a+rot; const x=.65*Math.cos(th), z=.65*Math.sin(th);
+        const foot=yB - x*Math.tan(alpha); q.m.position.set(x, foot+.78, z); q.shoe.position.set(x, foot+.03, z);
+        q.m.material = Math.sin(th)>0 ? mR : mG; }
+      const armTop=new T.Vector3(.95*Math.sin(alpha), -.55+.95*Math.cos(alpha), 0);
+      setRod(cpRod, armTop, new T.Vector3(2.25-.15, .1, 0)); setRod(spRod, new T.Vector3(-1.1,.1,0), armTop);
+      cpPis.position.x=-.12+(18*PI/180-alpha)*.6;
+      const fl=Math.tan(alpha)/Math.tan(18*PI/180)*(P.rpm/100);
+      return `Ángulo del backplate ${(alpha*180/PI).toFixed(1)}° · caudal ≈ ${Math.round(fl*100)} % del máximo · presión constante 103 bar`;
+    }};
+  }},
+
+/* ======== 4. Reservoir principle (p. 05-47) ======== */
+{ id:"deposito", group:"Principios", name:"Depósito: pistón doble", sub:"relación 1:60 · pág. 05-47",
+  img:"img/p47.jpg", page:"05-47 · Reservoir / valve block SYS 2",
+  desc:"El principio del depósito: la presión de operación empuja el pistón pequeño, unido al grande; con la relación de áreas 1:60 el fluido del depósito queda a 1.40–1.75 bar, que alimenta la succión de la bomba.",
+  note:"Baja el nivel: el pistón grande avanza y el indicador se acerca a MIN. Baja la presión del sistema: la precarga cae en la misma proporción.",
+  cam:[3.5,3.2,8.5], target:[.5,0,0],
+  params:[{id:"lvl", label:"Nivel", min:0, max:80, value:62, fmt:v=>(v/100).toFixed(2)+" l"}, {id:"p", label:"Presión del sistema", min:0, max:103, value:103, fmt:v=>v+" bar"}],
+  hot:{ hpp:[510,420,"High pressure piston"], big:[705,400,"Low pressure piston"], lvl:[970,370,"Level indicator"], sight:[790,155,"Sight glass"], lprel:[560,500,"Low pressure relief valve"], fluid:[730,560,"Reservoir"] },
+  build(){
+    const hs=group(); cylX(1.05,4.2,shell(C.dark),hs,0); explodeOn(hs,new T.Vector3(0,2.6,0));
+    const fl=cylX(.98,1,fluid(C.ret),root,0); label("Fluido · 1.40–1.75 bar", fl, new T.Vector3(0,0,1), "r", "fluid");
+    const big=cylX(1.0,.14,M(C.steel),root,0); label("Pistón grande (baja presión)", big, new T.Vector3(0,1.05,0), "", "big");
+    const rod=rodMesh(.1,M(C.steel),root);
+    const small=group(root,2.55,0,0); cylX(.32,.9,shell(0x6b4a2e),small); explodeOn(small,new T.Vector3(1.4,0,0));
+    const hp=cylX(.27,.6,fluid(C.press),root,2.7);
+    label("Pistón pequeño · 103 bar", small, new T.Vector3(0,.4,0), "p", "hpp");
+    const ind=group(root,3.55,0,0); cylX(.08,1.2,M(0x3A5068),ind); explodeOn(ind,new T.Vector3(1.6,0,0));
+    [-.45,.45].forEach(x=>{ const r=add(new T.TorusGeometry(.13,.025,8,24),M(C.amber),ind,x,0,0); r.rotation.y=PI/2; });
+    const tip=ball(.1,M(C.ret),root,3.55,0,0); label("Indicador MIN / MAX", ind, new T.Vector3(0,.3,0), "", "lvl");
+    const sg=cylY(.18,.25,fluid(0x8FE0A0),root,-1.3,1.12,0); label("Visor y purga", sg, new T.Vector3(0,.2,0), "", "sight");
+    const lp=group(root,.6,-1.35,0); cylY(.16,.5,M(C.brass),lp); spring(.1,.35,5,.02,M(C.steel),lp,0,-.1,0); explodeOn(lp,new T.Vector3(0,-1.2,0));
+    label("Alivio de baja · 7.50 bar", lp, new T.Vector3(0,-.35,0), "", "lprel");
+    return { update(){
+      const f=clamp(P.lvl/80,0,1), x=-2.0+.15+f*3.3;
+      fl.scale.y=Math.max(.02, x+2.0); fl.position.x=(-2.0+x)/2;
+      big.position.x=x; setRod(rod,new T.Vector3(x,0,0),new T.Vector3(2.4,0,0));
+      tip.position.x=3.55 + (f-.5)*.9; tip.material.color.setHex(P.lvl<20? C.red : C.ret);
+      hp.material.opacity = P.p>5? .9 : .2;
+      return `Precarga ${(P.p/60).toFixed(2)} bar (= ${P.p.toFixed(0)} ÷ 60) · nivel ${(P.lvl/100).toFixed(2)} l`+(P.lvl<20? " · SYS 1: corte TRA (TR SHUT OFF)":"");
+    }};
+  }},
+
+/* ======== 5. Aux gear pump (p. 05-39) ======== */
+{ id:"aux", group:"Principios", name:"Bomba auxiliar", sub:"engranajes · pág. 05-39",
+  img:"img/p39.jpg", page:"05-39 · Auxiliary hydraulic pump",
+  desc:"Bomba eléctrica de engranajes bajo el depósito del SYS 1. En tierra permite el chequeo de libre movimiento de los mandos sin motores (máx. 5 min). Toma aceite del manifold block del SYS 1 y lo entrega a ≈85 bar.",
+  note:"El fluido viaja atrapado entre los dientes y la carcasa, por fuera de los engranajes, desde la entrada (verde) hasta la salida (roja).",
+  cam:[0.5,2.2,7.5],
+  params:[{id:"on", label:"Switch AUX HYD PUMP", min:0, max:1, value:1, step:1, fmt:v=>v?"ON":"OFF"}],
+  hot:{ manifold:[548,410,"Manifold block"], auxp:[700,480,"Aux. hydraulic pump"] },
+  build(){
+    function gearShape(n, r1, r2){ const s=new T.Shape(); const step=2*PI/n;
+      for(let i=0;i<n;i++){ const a=i*step; [[r1,a],[r2,a+step*.2],[r2,a+step*.45],[r1,a+step*.65],[r1,a+step]].forEach(([r,an],j)=>{ const x=r*Math.cos(an), y=r*Math.sin(an); if(i===0&&j===0) s.moveTo(x,y); else s.lineTo(x,y); }); }
+      return s; }
     const geo=new T.ExtrudeGeometry(gearShape(10,.52,.68),{depth:.5,bevelEnabled:false}); geo.translate(0,0,-.25);
     const g1=add(geo,M(C.steel,{metalness:.85}),root,-.6,0,0), g2=add(geo,M(0x95a3b1,{metalness:.85}),root,.6,0,0);
-    g2.rotation.z=PI/10;
-    label("Engranaje motriz", g1, new T.Vector3(0,.8,.3)); label("Engranaje conducido", g2, new T.Vector3(0,.8,.3));
-    const hs=group(); box(2.9,1.9,.75,shell(C.dark),hs); explodeOn(hs,new T.Vector3(0,0,1.8));
-    label("Carcasa", hs, new T.Vector3(1.3,.9,0));
+    const hs=group(); box(2.9,1.9,.75,shell(0x7FA0C6),hs); explodeOn(hs,new T.Vector3(0,0,1.8));
+    label("Bomba auxiliar (engranajes)", hs, new T.Vector3(1.3,.9,0), "", "auxp");
     const mot=cylX(.55,1.6,M(0x3E4C5B),root,0,0,-1.2); mot.rotation.set(PI/2,0,0); explodeOn(mot,new T.Vector3(0,0,-1.4));
     label("Motor eléctrico ≈13.3 V", mot, new T.Vector3(0,.75,0));
     const inl=cylY(.2,1.2,fluid(C.ret),root,0,-1.55,0), out=cylY(.2,1.2,fluid(C.press),root,0,1.55,0);
-    label("Entrada desde manifold SYS 1", inl, new T.Vector3(0,-.6,0), "r"); label("Salida ≈85 bar", out, new T.Vector3(0,.6,0), "p");
-    const pr=particles(24,.07,M(C.press,{emissive:C.press,emissiveIntensity:.6}),root);
-    const pb=M(C.ret,{emissive:C.ret,emissiveIntensity:.6}), po=pr[0].material;
+    label("Desde el manifold block SYS 1", inl, new T.Vector3(0,-.6,0), "r", "manifold"); label("Salida ≈85 bar", out, new T.Vector3(0,.6,0), "p");
+    const pgM=new T.MeshStandardMaterial({color:0xffffff,emissive:C.ret,emissiveIntensity:1}), prM=new T.MeshStandardMaterial({color:0xffffff,emissive:C.press,emissiveIntensity:1});
+    const pg=particles(24,.07,pgM,root);
     let a=0;
     return { update(dt){
       if(UI.play && P.on) a+=dt*2.2;
       g1.rotation.z=a; g2.rotation.z=-a+PI/10;
-      pr.forEach((p,i)=>{ const left=i<12, k=((i%12)/12 + a*.08)%1; const ang = left? (-PI/2 - k*PI) : (-PI/2 + k*PI);
-        const cx=left?-.6:.6; p.position.set(cx+.78*Math.cos(ang), .78*Math.sin(ang), .0); p.visible=!!P.on; p.material = k<.5? pb : po; });
-      return P.on? "Bomba encendida · ≈85 bar a la entrada del manifold del SYS 1 · máx. 5 min con EPU, 90 s con batería" : "Bomba apagada";
+      pg.forEach((p,i)=>{ const left=i<12, k=((i%12)/12 + a*.08)%1; const ang = left? (-PI/2 - k*PI) : (-PI/2 + k*PI);
+        p.position.set((left?-.6:.6)+.78*Math.cos(ang), .78*Math.sin(ang), 0); p.visible=!!P.on; p.material = k<.5? pgM : prM; });
+      return P.on? "Encendida · ≈85 bar · máx. 5 min con EPU, 90 s solo con batería" : "Apagada";
     }};
   }},
 
-/* ---------------- 3. reservoir ---------------- */
-{ id:"deposito", name:"Depósito", sub:"pistón doble 1:60",
-  desc:"El depósito guarda 0.8 l. La presión de operación (103 bar) empuja un pistón pequeño unido a uno grande; por la relación de áreas 1:60 el fluido del depósito queda a 1.40–1.75 bar, que alimenta la succión de la bomba. La posición del pistón indica el nivel.",
-  note:"Baja el nivel con el control: el pistón grande avanza, el indicador se acerca a MIN y, en el SYS 1, bajo 0.20 l se corta el suministro al rotor de cola.",
-  cam:[3.5,3.2,8.5],
-  params:[{id:"lvl", label:"Nivel del depósito", min:0, max:80, value:62, unit:" cl", fmt:v=>(v/100).toFixed(2)+" l"}, {id:"p", label:"Presión del sistema", min:0, max:103, value:103, unit:" bar"}],
-  build(){
-    const hs=group(); cylX(1.05,4.2,shell(C.dark,{transparent:false}),hs,0); explodeOn(hs,new T.Vector3(0,2.6,0));
-    label("Cuerpo del depósito", hs, new T.Vector3(-1.2,1.1,0));
-    const fl=cylX(.98,1,fluid(C.ret),root,0); label("Fluido · 1.40–1.75 bar", fl, new T.Vector3(0,0,1), "r");
-    const big=cylX(1.0,.14,M(C.steel),root,0); label("Pistón grande (baja presión)", big, new T.Vector3(0,1.05,0));
-    const rod=rodMesh(.1,M(C.steel),root);
-    const small=group(root,2.55,0,0); cylX(.32,.9,shell(0x6b4a2e),small); const sp=cylX(.28,.12,M(C.steel),root,2.4); explodeOn(small,new T.Vector3(1.4,0,0));
-    const hp=cylX(.27,.6,fluid(C.press),root,2.7);
-    label("Pistón pequeño · 103 bar", small, new T.Vector3(0,.4,0), "p");
-    const ind=group(root,3.55,0,0); cylX(.08,1.2,M(0x3A5068),ind); explodeOn(ind,new T.Vector3(1.6,0,0));
-    const mk=(x,col)=>{ const r=add(new T.TorusGeometry(.13,.025,8,24),M(col),ind,x,0,0); r.rotation.y=PI/2; };
-    mk(-.45,C.amber); mk(.45,C.amber);
-    const tip=add(new T.SphereGeometry(.1,16,12),M(C.green),root,3.55,0,0);
-    label("Indicador de nivel MIN / MAX", ind, new T.Vector3(0,.3,0));
-    const sg=cylY(.18,.25,fluid(0x7FC4F0),root,-1.3,1.12,0); label("Visor (sight glass) y purga", sg, new T.Vector3(0,.2,0));
-    const lp=group(root,.6,-1.35,0); cylY(.16,.5,M(C.brass),lp); spring(.1,.35,5,.02,M(C.steel),lp,0,-.1,0); explodeOn(lp,new T.Vector3(0,-1.2,0));
-    label("Alivio de baja · 7.50 bar", lp, new T.Vector3(0,-.35,0));
-    const suc=cylY(.14,1.3,fluid(C.ret),root,-1.4,-1.7,0); label("A la succión de la bomba", suc, new T.Vector3(0,-.7,0), "r");
-    const ret=cylY(.14,1.3,fluid(C.ret),root,-.4,-1.7,0); label("Retorno de los actuadores", ret, new T.Vector3(0,-.7,0), "r");
-    return { update(dt){
-      const f=clamp(P.lvl/80,0,1), x=-2.0+.15+f*3.3;
-      fl.scale.y=Math.max(.02, x+2.0); fl.position.x=(-2.0+x)/2;
-      big.position.x=x; setRod(rod,new T.Vector3(x,0,0),new T.Vector3(2.4,0,0));
-      sp.position.x=2.4; tip.position.x=3.55 + (f-.5)*.9;
-      hp.material.emissiveIntensity = .1+.5*(P.p/103); hp.material.opacity = P.p>5? .85 : .2;
-      tip.material.color.setHex(P.lvl<20? C.red : C.green);
-      const pre=P.p/60;
-      return `Precarga ${pre.toFixed(2)} bar (= ${P.p.toFixed(0)} ÷ 60) · nivel ${(P.lvl/100).toFixed(2)} l`+(P.lvl<20? " · SYS 1: corte TRA (TR SHUT OFF)":"");
-    }};
-  }},
-
-/* ---------------- 4. valves ---------------- */
-{ id:"valvulas", name:"Válvulas del bloque", sub:"antirretorno · alivio · shut-off",
-  desc:"Tres válvulas del bloque, en corte. Antirretorno: justo después de la bomba, deja pasar hacia el bloque e impide el flujo inverso. Alivio de alta: abre a 122 bar y descarga a retorno. Shut-off: corta el suministro a los actuadores cuando la solenoide se energiza en la prueba HYD TEST.",
-  note:"Cambia los controles y mira cómo se levanta la bola, se comprime el resorte o se desplaza el carrete. Los puntos luminosos son el fluido pasando.",
-  cam:[0,1.6,9.5], cut:true,
-  params:[{id:"pump", label:"Bomba entregando caudal", min:0, max:1, value:1, step:1, unit:"", fmt:v=>v?"SÍ":"NO"},
-          {id:"pg", label:"Presión de la galería", min:80, max:135, value:103, unit:" bar"},
-          {id:"sol", label:"Solenoide (HYD TEST del otro sistema)", min:0, max:1, value:0, step:1, unit:"", fmt:v=>v?"ENERGIZADA":"desenergizada"}],
-  build(){
-    const base=box(8,.5,1.6,M(0x2A3644),root,0,-1.9,0);
-    function body(x,txt){ const g=group(root,x,0,0); cylY(.55,2.8,shell(C.dark),g); label(txt,g,new T.Vector3(0,1.75,0)); explodeOn(g,new T.Vector3(0,0,0)); return g; }
-    // check valve
-    body(-2.7,"Antirretorno");
-    add(new T.CylinderGeometry(.4,.14,.35,32,1,true),M(C.brass,{side:T.DoubleSide}),root,-2.7,-.55,0);
-    const ball1=add(new T.SphereGeometry(.26,32,24),M(C.steel,{metalness:.9}),root,-2.7,-.3,0);
-    const s1=spring(.2,1,7,.03,M(C.steel),root,-2.7,.5,0);
-    // relief
-    body(0,"Alivio de alta · 122 bar");
-    add(new T.CylinderGeometry(.4,.14,.35,32,1,true),M(C.brass,{side:T.DoubleSide}),root,0,-.55,0);
-    const ball2=add(new T.SphereGeometry(.26,32,24),M(C.steel,{metalness:.9}),root,0,-.3,0);
-    const s2=spring(.22,1,10,.05,M(0x8C9AA8),root,0,.5,0);
-    const relOut=cylX(.12,1.2,fluid(C.ret),root,.95,.2,0); label("A retorno",relOut,new T.Vector3(.5,.2,0),"r");
-    // shut-off spool + solenoid
-    body(2.7,"Shut-off + solenoide");
-    const coil=add(new T.TorusGeometry(.42,.12,12,32),M(0x3E4C5B),root,2.7,1.15,0); coil.rotation.x=PI/2;
-    const coil2=add(new T.TorusGeometry(.42,.12,12,32),M(0x3E4C5B),root,2.7,1.4,0); coil2.rotation.x=PI/2;
-    const spool=group(root,2.7,0,0); cylY(.12,1.6,M(C.steel),spool); cylY(.4,.22,M(0xC9D6E3),spool,0,.45,0); cylY(.4,.22,M(0xC9D6E3),spool,0,-.45,0);
-    const outA=cylX(.12,1.2,fluid(C.press),root,3.6,0,0); label("A los actuadores", outA, new T.Vector3(.5,.2,0), "p");
-    const inl=[-2.7,0,2.7].map(x=>cylY(.14,1,fluid(C.press),root,x,-1.35,0));
-    label("Desde la bomba", inl[0], new T.Vector3(0,-.3,0), "p");
-    const pts=particles(30,.06,M(0xFFE1C7,{emissive:0xFFC08A,emissiveIntensity:.8}),root);
-    let t=0;
-    return { update(dt){
-      if(UI.play) t+=dt;
-      const open1=P.pump>0, open2=P.pg>=122, open3=!P.sol && P.pg>50;
-      ball1.position.y=-.3+(open1?.32:0); s1.scale.y=open1?.72:1; s1.position.y=.5+(open1?.14:0);
-      const lift2=open2? clamp((P.pg-122)/13,0.15,1)*.3:0;
-      ball2.position.y=-.3+lift2; s2.scale.y=1-lift2*.9; s2.position.y=.5+lift2*.45;
-      spool.position.y= open3? .38 : 0;
-      coil.material.color.setHex(P.sol? C.amber:0x3E4C5B); coil2.material.color.setHex(P.sol? C.amber:0x3E4C5B);
-      relOut.material.opacity = open2? .9:.15; outA.material.opacity = open3? .9:.15;
-      pts.forEach((p,i)=>{ const v=i%3, k=((i/30)+t*.35)%1; const x=[-2.7,0,2.7][v];
-        const open=[open1,open2,open3][v]; p.visible=open;
-        if(v===0) p.position.set(x+.05*Math.sin(i), -1.8+k*3.2, .05*Math.cos(i));
-        else if(v===1){ if(k<.6) p.position.set(x,-1.8+k/.6*1.9,0); else p.position.set(x+(k-.6)/.4*1.5,.15,0); }
-        else { if(k<.5) p.position.set(x,-1.8+k/.5*1.8,0); else p.position.set(x+(k-.5)/.5*1.6,0,0); }
-      });
-      return `Antirretorno ${open1?"ABIERTA":"CERRADA"} · Alivio ${open2?"ABIERTO (≥122 bar)":"cerrado"} · Shut-off ${open3?"ABIERTA":"CERRADA"}`;
-    }};
-  }},
-
-/* ---------------- 5. tandem actuator ---------------- */
-{ id:"actuador", name:"Actuador tándem", sub:"servo · SYS 1 + SYS 2",
-  desc:"Actuador mecánico-hidráulico de un eje del rotor principal: dos cilindros en tándem (SYS 1 y SYS 2) sobre un vástago común. La palanca de entrada mueve los spools; la presión entra a una cámara y la otra descarga a retorno hasta que el pistón alcanza la entrada y el spool vuelve a neutro.",
-  note:"Mueve el mando del piloto: el spool se abre, el pistón sigue la entrada y se bloquea al llegar. Con un sistema fuera, ese cilindro queda en bypass (violeta) y la fuerza baja a la mitad (3150 N).",
+/* ======== 6. Servo principle (p. 05-53) ======== */
+{ id:"tandem", group:"Principios", name:"Principio del servo", sub:"esquema básico · pág. 05-53",
+  img:"img/p53.jpg", page:"05-53 · Main rotor actuator basic schematic",
+  desc:"El principio de funcionamiento, simplificado: dos cilindros en tándem sobre un vástago común. La entrada desplaza el spool; la presión entra a una cámara y la otra descarga hasta que el pistón alcanza la entrada y el spool vuelve a neutro.",
+  note:"Con el SYS 2 sin presión, ese cilindro queda en bypass (violeta) y la fuerza baja a la mitad.",
   cam:[2,3.4,9.5], cut:true,
-  params:[{id:"in", label:"Mando del piloto", min:-100, max:100, value:0, unit:" %"},
-          {id:"auto", label:"Movimiento automático", min:0, max:1, value:1, step:1, unit:"", fmt:v=>v?"ON":"OFF"},
-          {id:"s2", label:"SYS 2", min:0, max:1, value:1, step:1, unit:"", fmt:v=>v?"con presión":"sin presión (bypass)"}],
+  params:[{id:"in", label:"Mando del piloto", min:-100, max:100, value:0, fmt:v=>v+" %"},
+          {id:"auto", label:"Movimiento automático", min:0, max:1, value:1, step:1, fmt:v=>v?"ON":"OFF"},
+          {id:"s2", label:"SYS 2", min:0, max:1, value:1, step:1, fmt:v=>v?"con presión":"sin presión (bypass)"}],
   build(){
-    const cyl=[]; const fm={p:fluid(C.press), r:fluid(C.ret), t:fluid(0xC0652B), b:fluid(0xA493E0)};
+    const fm={p:fluid(C.press), r:fluid(C.ret), t:fluid(C.ctl), b:fluid(C.by)}; const cyl=[];
     [[-1.25,"SYS 1"],[1.25,"SYS 2"]].forEach(([x,n],i)=>{
-      const g=group(root,x,0,0); cylX(.62,2.1,shell(C.dark),g); explodeOn(g,new T.Vector3(0,0,i?1.6:-1.6));
-      label("Cilindro "+n, g, new T.Vector3(0,.7,0));
-      const A=cylX(.56,1,fm.t,root,0), Bc=cylX(.56,1,fm.t,root,0), pis=cylX(.58,.16,M(C.steel),root,0);
-      cyl.push({x0:x-1.0, x1:x+1.0, A, B:Bc, pis});
-    });
+      const g=group(root,x,0,0); cylX(.62,2.1,shell(C.dark),g); explodeOn(g,new T.Vector3(0,0,i?1.6:-1.6)); label("Cilindro "+n, g, new T.Vector3(0,.7,0));
+      const A=cylX(.56,1,fm.t,root,0), Bc=cylX(.56,1,fm.t,root,0), pis=cylX(.58,.16,M(C.steel),root,0); cyl.push({x0:x-1.0, x1:x+1.0, A, B:Bc, pis}); });
     const rod=cylX(.13,7.2,M(C.steel,{metalness:.9}),root,0); label("Vástago común", rod, new T.Vector3(-3.2,.18,0));
-    const spoolBody=group(root,0,1.2,0); cylX(.28,3.2,shell(0x4A5868),spoolBody); explodeOn(spoolBody,new T.Vector3(0,1.4,0));
-    label("Spools SYS 1 / SYS 2 (vástago común)", spoolBody, new T.Vector3(0,.32,0));
-    const spool=group(root,0,1.2,0); cylX(.06,3.4,M(C.steel),spool); [-1.0,-.4,.4,1.0].forEach(x=>cylX(.24,.22,M(0xC9D6E3),spool,x));
-    const lev=rodMesh(.07,M(C.amber),root), inRod=rodMesh(.07,M(C.sema),root), link=rodMesh(.05,M(0x8FA2B6),root);
-    const inKnob=add(new T.SphereGeometry(.14,16,12),M(C.sema),root);
-    label("Entrada del piloto (varilla SEMA)", inKnob, new T.Vector3(0,.25,0));
-    const fork=box(.4,.5,.5,M(0x7d8b99),root,0,0,0); label("Salida al mixing lever", fork, new T.Vector3(.2,.35,0));
-    const chk=add(new T.SphereGeometry(.12,16,12),M(C.green),root,-1.25,-.75,0); label("Check valve", chk, new T.Vector3(0,-.2,0));
-    const byp=add(new T.SphereGeometry(.12,16,12),M(C.green),root,1.25,-.75,0); label("Bypass / shut-off", byp, new T.Vector3(0,-.2,0));
+    const sb=group(root,0,1.2,0); cylX(.28,3.2,shell(0x4A5868),sb); explodeOn(sb,new T.Vector3(0,1.4,0)); label("Spools", sb, new T.Vector3(0,.32,0));
+    const spool=group(root,0,1.2,0); cylX(.06,3.4,M(C.steel),spool); [-1.0,-.4,.4,1.0].forEach(x=>cylX(.24,.22,M(C.white),spool,x));
     let xin=0, xp=0, t=0;
     return { update(dt){
-      t+=UI.play?dt:0;
-      const target = P.auto ? .55*Math.sin(t*.7)+.2*Math.sin(t*1.9) : P.in/100*.6;
-      xin = target;
-      const e=clamp((xin-xp)/.12,-1,1);
-      const n = 1 + (P.s2?1:0);
-      xp += e*.5*dt*(UI.play||!P.auto?1:0);
-      xp=clamp(xp,-.6,.6);
-      rod.position.x=xp;
-      cyl.forEach((c,i)=>{
-        const px=(i?1.25:-1.25)+xp*.75;
-        c.pis.position.x=px;
-        const lA=px-c.x0-.08, lB=c.x1-px-.08;
+      t+=UI.play?dt:0; xin = P.auto ? .55*Math.sin(t*.7) : P.in/100*.6;
+      const e=clamp((xin-xp)/.12,-1,1); if(UI.play||!P.auto) xp=clamp(xp+e*.5*dt,-.6,.6); rod.position.x=xp;
+      cyl.forEach((c,i)=>{ const px=(i?1.25:-1.25)+xp*.75; c.pis.position.x=px; const lA=px-c.x0-.08, lB=c.x1-px-.08;
         c.A.scale.y=Math.max(.02,lA); c.A.position.x=c.x0+lA/2; c.B.scale.y=Math.max(.02,lB); c.B.position.x=c.x1-lB/2;
-        const by = (i===1 && !P.s2);
-        if(by){ c.A.material=fm.b; c.B.material=fm.b; }
-        else if(e>.05){ c.A.material=fm.p; c.B.material=fm.r; }
-        else if(e<-.05){ c.A.material=fm.r; c.B.material=fm.p; }
-        else { c.A.material=fm.t; c.B.material=fm.t; }
-      });
-      spool.position.x = e*.18;
-      fork.position.x=3.75+xp;
-      const top=new T.Vector3(-3.4+xin,2.3,0), bot=new T.Vector3(-3.6+xp,0,0);
-      setRod(lev, top, bot); setRod(inRod, new T.Vector3(-5.2,2.3,0), top); inKnob.position.copy(top);
-      setRod(link, new T.Vector3(-3.5+(xin+xp)/2,1.15,0), new T.Vector3(-1.7+e*.18,1.2,0));
-      byp.material.color.setHex(P.s2? C.green : 0xA493E0);
-      const st = Math.abs(e)<.05 ? "Spool en NEUTRO: fluido atrapado, pistón bloqueado" : `Spool abierto ${Math.round(Math.abs(e)*100)} %: presión a la cámara ${e>0?"A":"B"}, la ${e>0?"B":"A"} a retorno`;
-      return `${st} · fuerza disponible ${n*3150} N`;
+        if(i===1&&!P.s2){ c.A.material=c.B.material=fm.b; } else if(e>.05){ c.A.material=fm.p; c.B.material=fm.r; } else if(e<-.05){ c.A.material=fm.r; c.B.material=fm.p; } else { c.A.material=c.B.material=fm.t; } });
+      spool.position.x=e*.18;
+      return (Math.abs(e)<.05?"Spool en neutro: pistón bloqueado":"Spool abierto "+Math.round(Math.abs(e)*100)+" %")+` · fuerza ${(P.s2?2:1)*3150} N`;
     }};
   }},
 
-/* ---------------- 6. MRA assembly ---------------- */
-{ id:"conjunto", name:"Conjunto rotor principal", sub:"3 actuadores · backplates · SEMA",
-  desc:"Los tres actuadores (longitudinal, colectivo y lateral) van sobre dos manifold backplates, una por sistema, fijadas al module frame. Las varillas SEMA dúplex llevan la entrada del piloto (y del piloto automático) a cada actuador; las salidas reforzadas van al mixing lever, que mezcla los tres ejes hacia el plato oscilante.",
-  note:"Con «Animación» los tres ejes se mueven como en vuelo: mira cómo los vástagos empujan el mixing lever. Los SEMA (azules) alargan o acortan la varilla de entrada.",
+/* ======== 7. MRA assembly (p. 05-51) ======== */
+{ id:"conjunto", group:"Principios", name:"Conjunto rotor principal", sub:"3 actuadores · pág. 05-51",
+  img:"img/p51.jpg", page:"05-51 · Main rotor actuator assembly",
+  desc:"Los tres actuadores (longitudinal, colectivo y lateral) sobre las dos manifold backplates, una por sistema. Las varillas SEMA dúplex llevan la entrada a cada actuador; las salidas reforzadas van al mixing lever.",
+  note:"Con «Animación» los tres ejes se mueven como en vuelo y el mixing lever se inclina.",
   cam:[6,5,9],
-  params:[{id:"amp", label:"Amplitud de los mandos", min:0, max:100, value:60, unit:" %"}],
+  params:[{id:"amp", label:"Amplitud de los mandos", min:0, max:100, value:60, fmt:v=>v+" %"}],
+  hot:{ bp1:[690,505,"Manifold backplate 1"], bp2:[600,580,"Manifold backplate 2"], cyl:[700,420,"Boost cylinder"], input:[715,60,"Input control rod"], test:[390,540,"Test button"] },
   build(){
-    const frame=box(7,.3,3.2,M(0x4A5868),root,0,-1.6,0); label("Module frame", frame, new T.Vector3(-3,.2,1.2));
-    const bp1=box(6.4,.35,1.1,M(0x6b4a2e),root,0,-1.25,-.7), bp2=box(6.4,.35,1.1,M(0x2F4F6E),root,0,-1.25,.7);
+    box(7,.3,3.2,M(0x4A5868),root,0,-1.6,0);
+    const bp1=box(6.4,.35,1.1,M(0x6F8FB8),root,0,-1.25,-.7), bp2=box(6.4,.35,1.1,M(0x7FA77F),root,0,-1.25,.7);
     explodeOn(bp1,new T.Vector3(0,0,-1.2)); explodeOn(bp2,new T.Vector3(0,0,1.2));
-    label("Backplate SYS 1", bp1, new T.Vector3(2.6,.2,0), "p"); label("Backplate SYS 2", bp2, new T.Vector3(2.6,.2,0), "r");
-    const names=["Longitudinal","Colectivo","Lateral"]; const acts=[];
+    label("Backplate SYS 1", bp1, new T.Vector3(2.6,.2,0), "", "bp1"); label("Backplate SYS 2", bp2, new T.Vector3(2.6,.2,0), "", "bp2");
+    const names=["Longitudinal","Colectivo","Lateral"], acts=[];
     [-2.2,0,2.2].forEach((x,i)=>{
-      const g=group(root,x,0,0); cylY(.55,2.2,shell(C.dark),g); explodeOn(g,new T.Vector3(0,1.2,0));
-      label(names[i], g, new T.Vector3(0,1.2,0));
+      const g=group(root,x,0,0); cylY(.55,2.2,shell(C.dark),g); explodeOn(g,new T.Vector3(0,1.2,0)); label(names[i], g, new T.Vector3(0,1.2,0), "", i===1?"cyl":undefined);
       const rod=cylY(.12,1.4,M(C.steel,{metalness:.9}),root,x,1.6,0);
       const sema=group(root,x-.9,.4,0); cylY(.12,1.2,M(C.sema),sema); cylY(.16,.18,M(0x3E6E9E),sema,0,.2,0); cylY(.16,.18,M(0x3E6E9E),sema,0,-.2,0);
-      if(i===0) label("Varilla SEMA dúplex", sema, new T.Vector3(0,.7,0));
-      acts.push({x,rod,sema});
-      [-.35,.35].forEach((z,j)=>cylY(.08,.6,fluid(j?C.ret:C.press),root,x+.25,-.85,z));
-    });
+      if(i===0) label("Varilla SEMA dúplex (entrada)", sema, new T.Vector3(0,.7,0), "", "input");
+      const tb=cylX(.1,.4,M(C.white),root,x-.75,-.4,0); if(i===2) label("Botón de prueba", tb, new T.Vector3(-.2,.1,0), "", "test");
+      acts.push({rod,sema}); [-.35,.35].forEach((z,j)=>cylY(.08,.6,fluid(j?C.ret:C.press),root,x+.25,-.85,z)); });
     const ml=group(root,0,2.6,0); box(6,.18,.4,M(C.amber),ml); label("Mixing lever → plato oscilante", ml, new T.Vector3(0,.3,0));
     let t=0;
     return { update(dt){
-      if(UI.play) t+=dt;
-      const a=P.amp/100;
+      if(UI.play) t+=dt; const a=P.amp/100;
       const off=[.35*a*Math.sin(t*.8), .3*a*Math.sin(t*.45+1), .35*a*Math.sin(t*1.1+2)];
       acts.forEach((q,i)=>{ q.rod.position.y=1.6+off[i]; q.sema.position.y=.4+off[i]*.6; q.sema.scale.y=1+.08*Math.sin(t*3+i); });
       ml.position.y=2.6+off[1]; ml.rotation.z=(off[2]-off[0])/4.4;
-      return `Long ${(off[0]*100).toFixed(0)} · Col ${(off[1]*100).toFixed(0)} · Lat ${(off[2]*100).toFixed(0)} (mm relativos, ilustrativo)`;
+      return "Movimiento ilustrativo de los tres ejes";
     }};
   }}
 ];
 
 /* ================= UI ================= */
 function buildNav(){
-  $("nav").innerHTML = MODELS.map(m=>`<button data-id="${m.id}">${m.name}<small>${m.sub}</small></button>`).join("");
+  let html="", g="";
+  MODELS.forEach(m=>{ if(m.group!==g){ g=m.group; html+=`<h3>${g}</h3>`; } html+=`<button data-id="${m.id}">${m.name}<small>${m.sub}</small></button>`; });
+  $("nav").innerHTML=html;
   $("nav").querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>load(b.dataset.id)));
 }
 function buildParams(m){
@@ -419,48 +636,77 @@ function buildParams(m){
   $("params").innerHTML = (m.params||[]).map(p=>`<div class="ctrl"><label for="p-${p.id}">${p.label} <b id="pv-${p.id}"></b></label><input type="range" id="p-${p.id}" min="${p.min}" max="${p.max}" step="${p.step||1}" value="${p.value}"></div>`).join("");
   (m.params||[]).forEach(p=>{
     const inp=$("p-"+p.id), out=$("pv-"+p.id);
-    const set=()=>{ P[p.id]=+inp.value; out.textContent = p.fmt ? p.fmt(P[p.id]) : P[p.id]+p.unit; if(p.id==="in" && P.auto!==undefined){ P.auto=0; const a=$("p-auto"); if(a){ a.value=0; $("pv-auto").textContent="OFF"; } } };
-    inp.addEventListener("input",set); P[p.id]=+inp.value; out.textContent = p.fmt ? p.fmt(P[p.id]) : P[p.id]+p.unit;
+    const show=()=>{ out.textContent = p.fmt ? p.fmt(P[p.id]) : P[p.id]; };
+    inp.addEventListener("input",()=>{ P[p.id]=+inp.value; show();
+      if(p.id==="in" && $("p-auto")){ P.auto=0; $("p-auto").value=0; $("pv-auto").textContent="OFF"; } });
+    P[p.id]=+inp.value; show();
   });
+}
+function buildSheet(m){
+  const has = SHOW_SHEETS && m.img;
+  $("sheetBtn").style.display = has? "" : "none";
+  if(!has){ $("hots").innerHTML=""; return; }
+  $("sheetImg").src=m.img; $("sheetImg").alt="Lámina del manual, página "+m.page;
+  $("sheetCap").innerHTML=`<b>Lámina del manual</b> · pág. ${m.page}.`+(m.hot? " Toca un número para ubicar la pieza en 3D." : "");
+  const keys=Object.keys(m.hot||{});
+  $("hots").innerHTML = keys.map((k,i)=>{ const [x,y,t]=m.hot[k]; return `<button class="hs" data-k="${k}" style="left:${(x/1277*100).toFixed(2)}%;top:${(y/725*100).toFixed(2)}%" aria-label="${i+1}: ${t}" title="${t}">${i+1}</button>`; }).join("");
+  $("hots").querySelectorAll(".hs").forEach(h=>h.addEventListener("click",()=>select(h.dataset.k)));
 }
 function clearScene(){
   if(root){ scene.remove(root); root.traverse(o=>{ if(o.geometry) o.geometry.dispose(); }); }
-  shells=[]; exploders=[]; labels.forEach(l=>l.el.remove()); labels=[];
+  if(selBox){ scene.remove(selBox); selBox=null; }
+  shells=[]; exploders=[]; flows=[]; labels.forEach(l=>l.el.remove()); labels=[]; selKey=null; focus.on=false;
 }
 function load(id){
   const m=MODELS.find(x=>x.id===id)||MODELS[0];
-  clearScene();
+  clearScene(); cur=m;
   root=new T.Group(); scene.add(root);
   $("nav").querySelectorAll("button").forEach(b=>b.classList.toggle("on",b.dataset.id===m.id));
   $("mTitle").textContent=m.name; $("mDesc").textContent=m.desc; $("mNote").textContent=m.note||"";
-  buildParams(m);
-  UI.cut = !!m.cut; syncButtons();
-  model = m.build();
+  $("selCard").textContent = m.hot && SHOW_SHEETS ? "Toca una etiqueta del modelo o un número de la lámina." : "Toca una etiqueta para resaltar la pieza.";
+  buildParams(m); buildSheet(m);
+  UI.cut=!!m.cut;
+  model=m.build();
+  syncButtons();
+  setTimeout(resize,0);
   resetView(m);
   try{ history.replaceState(null,"","#"+m.id); }catch(e){}
 }
-function resetView(m){ m=m||MODELS.find(x=>"#"+x.id===location.hash)||MODELS[0]; camera.position.set(...m.cam); controls.target.set(0,0,0); controls.update(); }
+function resetView(m){ m=m||cur; camera.position.set(...m.cam); const t=m.target||[0,0,0]; controls.target.set(...t); focus.on=false; controls.update(); }
 function syncButtons(){
   $("playBtn").textContent="Animación "+(UI.play?"ON":"OFF"); $("playBtn").classList.toggle("on",UI.play);
   $("cutBtn").textContent="Corte: "+(UI.cut?"ON":"OFF"); $("cutBtn").classList.toggle("on",UI.cut);
   $("labBtn").textContent="Etiquetas "+(UI.labels?"ON":"OFF"); $("labBtn").classList.toggle("on",UI.labels);
+  $("sheetBtn").textContent="Lámina: "+(["oculta","al lado","grande"][UI.sheet]);
+  document.documentElement.style.setProperty("--sheetW", UI.sheet===2? "58%" : "42%");
+  $("work").classList.toggle("nosheet", !(SHOW_SHEETS && cur && cur.img) || !UI.sheet);
   shells.forEach(m=>{ m.clippingPlanes = UI.cut? [CUT] : []; m.needsUpdate=true; });
 }
 $("playBtn").addEventListener("click",()=>{ UI.play=!UI.play; syncButtons(); });
 $("cutBtn").addEventListener("click",()=>{ UI.cut=!UI.cut; syncButtons(); });
 $("labBtn").addEventListener("click",()=>{ UI.labels=!UI.labels; syncButtons(); });
-$("resetBtn").addEventListener("click",()=>resetView(MODELS.find(x=>x.id===(location.hash||"").slice(1))));
+$("sheetBtn").addEventListener("click",()=>{ UI.sheet=(UI.sheet+1)%3; syncButtons(); setTimeout(resize,0); });
+$("resetBtn").addEventListener("click",()=>resetView());
 $("explode").addEventListener("input",e=>{ UI.explode=e.target.value/100; $("explodeV").textContent=e.target.value+" %"; });
+$("fsBtn").addEventListener("click",async()=>{ try{ if(!document.fullscreenElement) await document.documentElement.requestFullscreen(); else await document.exitFullscreen(); }catch(e){ $("fsBtn").textContent="Usa F11"; } });
+controls.addEventListener("start",()=>{ focus.on=false; });
 
 buildNav();
 resize();
-load((location.hash||"").slice(1) || "bomba");
+load((location.hash||"").slice(1) || "bloque");
 let last=performance.now(), stT=0;
 function frame(now){
   const dt=Math.min(.05,(now-last)/1000); last=now;
   for(const x of exploders) x.obj.position.copy(x.obj.userData.base).addScaledVector(x.vec, UI.explode);
   let st="";
   try{ st = model && model.update ? model.update(dt) : ""; }catch(e){ st="Error en el modelo: "+e.message; }
+  for(const f of flows){
+    const on=f.active() && UI.explode<.05;
+    if(UI.play) f.t=(f.t+dt*f.speed)%1;
+    f.ps.forEach((p,i)=>{ p.visible=on; if(on){ const u=(f.t+i/f.ps.length)%1; p.position.copy(f.path.getPointAt(u)); } });
+  }
+  if(selBox) selBox.update();
+  if(focus.on){ controls.target.lerp(focus.target, .08); if(controls.target.distanceTo(focus.target)<.01) focus.on=false; }
   stT+=dt; if(stT>.2){ stT=0; $("status").textContent=st; }
   controls.update();
   renderer.render(scene,camera);
