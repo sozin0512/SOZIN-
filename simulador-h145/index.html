@@ -102,6 +102,11 @@ input[type=range]{width:100%;accent-color:var(--press)}
 .note{font-size:12px;color:var(--muted)}
 .scen{display:flex;flex-wrap:wrap;gap:6px}
 
+/* ---- 3D models panel ---- */
+#m3dFrame{width:100%;height:72vh;border:0;border-radius:8px;background:#0A1017;display:block}
+.m3dIdle{display:flex;align-items:center;justify-content:center;gap:12px;height:120px;border:1px dashed var(--line);border-radius:8px;color:var(--muted)}
+body.proj #sMain #m3dFrame{flex:1 1 0;min-height:0;height:100%}
+.rpad3d{width:min(80vw,320px);height:min(60vw,240px)}
 /* ---- SEMA panel ---- */
 .semawrap{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:14px;min-height:0}
 @media (max-width:980px){.semawrap{grid-template-columns:1fr}}
@@ -250,6 +255,11 @@ body.proj .panel h2{font-size:22px}
     </div>
   </section>
 
+  <section class="panel" id="m3dPanel" aria-label="Modelos 3D">
+    <h2>Modelos 3D <small>se controlan desde el celular en modo proyección</small></h2>
+    <div class="m3dIdle" id="m3dIdle"><span>Los modelos 3D se cargan al abrirlos.</span><button class="btn" id="m3dOpen">Abrir modelos 3D aquí</button></div>
+    <iframe id="m3dFrame" title="Modelos 3D del sistema hidráulico" style="display:none" allow="fullscreen"></iframe>
+  </section>
   <section class="panel" id="semaPanel" aria-label="SEMA y piloto automático">
     <h2>SEMA y piloto automático (AFCS) · en vivo
       <span class="row" style="gap:8px">
@@ -398,8 +408,26 @@ body.proj .panel h2{font-size:22px}
       <button class="btn big" data-view="general">Esquema general</button><button class="btn big" data-view="bloque">Bloque de válvulas</button>
       <button class="btn big" data-view="actuador">Actuador</button><button class="btn big" data-view="bomba">Bomba</button>
       <button class="btn big" data-view="sema" style="grid-column:1 / 3">SEMA / piloto automático</button>
+      <button class="btn big" data-view="m3d" style="grid-column:1 / 3">🧊 Modelos 3D</button>
     </div>
     <div class="rgrid"><button class="btn" id="rProj">Proyección</button><button class="btn" id="rAp">AFCS / SEMA</button></div>
+  </section>
+  <section class="panel" id="rM3d">
+    <h2>Modelos 3D</h2>
+    <div class="rfails" id="rM3dModels"></div>
+    <span class="note">Arrastra en el recuadro para girar el modelo en la pantalla.</span>
+    <div class="pad rpad3d" id="rOrbit" aria-label="Girar el modelo 3D"><span class="padlab" style="left:50%;top:50%;transform:translate(-50%,-50%)">↻ girar</span></div>
+    <div class="rgrid">
+      <button class="btn big" id="rZin">＋ Acercar</button><button class="btn big" id="rZout">－ Alejar</button>
+      <button class="btn" id="rM3dCut">Corte</button><button class="btn" id="rM3dLab">Etiquetas</button>
+      <button class="btn" id="rM3dPlay">Animación</button><button class="btn" id="rM3dSheet">Lámina</button>
+      <button class="btn" id="rM3dReset" style="grid-column:1 / 3">Vista inicial</button>
+    </div>
+    <div class="field"><label for="rExpl3d">Vista explosionada <b id="rExpl3dV">0 %</b></label><input type="range" id="rExpl3d" min="0" max="100" value="0"></div>
+    <div id="rM3dParams"></div>
+    <span class="note" id="rM3dStatus"></span>
+    <h2 style="margin-top:4px">Piezas <small>toca para resaltarla</small></h2>
+    <div class="rgrid" id="rM3dParts"></div>
   </section>
   <section class="panel">
     <h2>SEMA / piloto automático</h2>
@@ -1462,6 +1490,36 @@ function wireVB(){
 }
 
 
+/* ================= 3D models bridge ================= */
+let M3D = null, m3dQueue = [], m3dReady = false; let m3dLast = null;
+const M3D_LIST = [["bloque","Bloque de válvulas y depósito"],["actuador","Actuador mecánico-hidráulico"],["bomba","Bomba de pistones"],["deposito","Depósito: pistón doble"],["aux","Bomba auxiliar"],["tandem","Principio del servo"],["conjunto","Conjunto rotor principal"]];
+function ensureM3D(){
+  const f=$("m3dFrame"); if(f.getAttribute("src")) return;
+  f.setAttribute("src","modelos-3d.html?embed=1"); f.style.display="block"; $("m3dIdle").style.display="none";
+}
+function m3dSend(c){
+  const f=$("m3dFrame"); if(!f || !f.contentWindow) return;
+  const ok = c && typeof c.cmd==="string" && ["load","toggle","sheet","explode","orbit","zoom","reset","param","select","ping"].includes(c.cmd);
+  if(!ok) return;
+  const msg={src:"h145sim", cmd:c.cmd, id:c.id, k:c.k, v:c.v, dx:c.dx, dy:c.dy, f:c.f};
+  if(c.cmd==="load") m3dLast=c.id;
+  if(!m3dReady){ m3dQueue.push(msg); return; }
+  try{ f.contentWindow.postMessage(msg, "*"); }catch(e){}
+}
+window.addEventListener("message", e=>{
+  const f=$("m3dFrame"); if(!f || e.source!==f.contentWindow) return;
+  const d=e.data; if(!d || d.src!=="h145m3d" || !d.state) return;
+  M3D=d.state;
+
+  if(m3dLast && M3D.cur!==m3dLast && !m3dQueue.some(m=>m.cmd==="load")){ try{ f.contentWindow.postMessage({src:"h145sim",cmd:"load",id:m3dLast},"*"); }catch(err){} }  if(!m3dReady){ m3dReady=true; const q=m3dQueue; m3dQueue=[]; q.forEach(m=>{ try{ f.contentWindow.postMessage(m,"*"); }catch(err){} }); }
+});
+function m3dSummary(){
+  if(!M3D) return null;
+  const st=M3D;
+  return { models: st.models, cur: st.cur, title: st.title, sel: st.sel, status: st.status, ui: st.ui,
+    params: (st.params||[]).slice(0,8), parts: (st.parts||[]).slice(0,30) };
+}
+
 /* ================= SEMA panel ================= */
 const sv=$("semaSvg"), sc=$("semaChart");
 function sE(p,tag,a){ const e=document.createElementNS(NS,tag); for(const k in a) e.setAttribute(k,a[k]); p.appendChild(e); return e; }
@@ -1517,6 +1575,7 @@ function buildSemaPanel(){
   sT(sc,510,244,"últimos 12 s →",{"text-anchor":"end","font-size":12});
   $("turb").addEventListener("input",e=>{ S.turbAmp=e.target.value/100; });
   $("semaAp").addEventListener("click",()=>{ S.ap=!S.ap; log("AFCS "+(S.ap?"ON":"OFF")); });
+  $("m3dOpen").addEventListener("click",()=>ensureM3D());
   $("semaF1").addEventListener("click",()=>{ const cb=$("f-sema1"); cb.checked=!cb.checked; cb.dispatchEvent(new Event("change")); });
 }
 let semaT=0;
@@ -1579,14 +1638,17 @@ function renderSema(){
 
 /* ================= projection mode ================= */
 const PROJ = {on:false, view:"general", ph:new Map()};
-const viewPanel = v => ({general:$("schem"), bloque:$("vbSvg"), actuador:$("detail"), bomba:$("pumpSvg"), sema:$("semaSvg")}[v]||$("schem")).closest("section");
+const viewPanel = v => ({general:$("schem"), bloque:$("vbSvg"), actuador:$("detail"), bomba:$("pumpSvg"), sema:$("semaSvg"), m3d:$("m3dFrame")}[v]||$("schem")).closest("section");
 function park(el, dest){
+  if(el.querySelector && el.querySelector("#m3dFrame")) m3dReady=false;
   if(!PROJ.ph.has(el)){ const c=document.createComment("ph"); el.parentNode.insertBefore(c, el); PROJ.ph.set(el,c); }
   dest.appendChild(el);
 }
-function unpark(el){ const c=PROJ.ph.get(el); if(c){ c.parentNode.insertBefore(el,c); c.remove(); PROJ.ph.delete(el); } }
+function unpark(el){
+  if(el.querySelector && el.querySelector("#m3dFrame")) m3dReady=false; const c=PROJ.ph.get(el); if(c){ c.parentNode.insertBefore(el,c); c.remove(); PROJ.ph.delete(el); } }
 function setView(v){
-  if(!["general","bloque","actuador","bomba","sema"].includes(v)) return;
+  if(v==="m3d") ensureM3D();
+  if(!["general","bloque","actuador","bomba","sema","m3d"].includes(v)) return;
   PROJ.view=v;
   if(!PROJ.on) return;
   [...$("sMain").children].forEach(unpark);
@@ -1762,13 +1824,14 @@ function startScreenLink(){
       else if(a==="reset"){ $("resetBtn").click(); }
       else if(a==="selftest"){ $("selfTestBtn").click(); }
       else if(a==="ovtest"){ $("ovTestBtn").click(); }
-      else if(a==="view" && ["general","bloque","actuador","bomba","sema"].includes(d.k)){ if(!PROJ.on) enterProj(); setView(d.k); }
+      else if(a==="view" && ["general","bloque","actuador","bomba","sema","m3d"].includes(d.k)){ if(!PROJ.on) enterProj(); setView(d.k); }
       else if(a==="proj"){ v ? enterProj() : exitProj(); }
       else if(a==="vbsys" && (d.i===0||d.i===1)){ openVB(d.i); }
       else if(a==="vbsel" && typeof d.k==="string" && COMPS[d.k] && !(COMPS[d.k].sys1 && VB.sys!==0)){ selectComp(d.k,true); if(PROJ.on) setView("bloque"); }
       else if(a==="tour"){ VB.tour=v; VB.cur=-1; syncTourBtn(); if(PROJ.on) setView("bloque"); }
       else if(a==="ap"){ S.ap=v; log("Celular: AFCS "+(v?"ON":"OFF")); }
       else if(a==="turb" && typeof d.v==="number" && isFinite(d.v)){ S.turbAmp=clamp(d.v,0,2); }
+      else if(a==="m3d" && d.c && typeof d.c==="object"){ ensureM3D(); if(PROJ.on && PROJ.view!=="m3d") setView("m3d"); m3dSend(d.c); }
       else if(a==="pump" && (d.i===0||d.i===1)){ const b=document.querySelector(`#pSeg button[data-p="${d.i}"]`); if(b) b.click(); if(PROJ.on) setView("bomba"); }
       else if(a==="axis" && AX_KEYS.includes(d.k)){ selectAxis(d.k); if(PROJ.on) setView("actuador"); }
       else if(a==="speed" && [1,5,20].includes(d.s)){ const b=document.querySelector(`#speedSeg button[data-s="${d.s}"]`); if(b) b.click(); }
@@ -1783,7 +1846,7 @@ function startScreenLink(){
         const m = messages().map(x=>[[x[0],x[1],x[2]].filter(Boolean).join(" "), x[3]]);
         room.emit("st", {p1:+S.sys[0].pd.toFixed(1), p2:+S.sys[1].pd.toFixed(1), inv2: !!(S.fail.sens2 && (S.selfTest.signal || S.sys[1].invalidT>20)),
           m, rotor:S.rotorTarget>0, aux:S.aux, epu:S.epu, auto:S.auto, paused:S.paused, test:S.test, speed:S.speed, ax:S.selAx,
-          fails:Object.assign({},S.fail), inp:Object.assign({},S.inp), ex:($("explain").firstChild||{}).textContent||"", view:PROJ.view, proj:PROJ.on, vbSys:VB.sys, vbSel:VB.sel, tour:VB.tour, ap:S.ap, pump:S.selPump, turb:S.turbAmp, sema1f:!!S.fail.sema1, semaTxt:semaSummary(), card:(VB.sel&&COMPS[VB.sel])?COMPS[VB.sel].n+": "+COMPS[VB.sel].st(vSt(VB.sys)):""});
+          fails:Object.assign({},S.fail), inp:Object.assign({},S.inp), ex:($("explain").firstChild||{}).textContent||"", view:PROJ.view, proj:PROJ.on, vbSys:VB.sys, vbSel:VB.sel, tour:VB.tour, ap:S.ap, pump:S.selPump, turb:S.turbAmp, sema1f:!!S.fail.sema1, semaTxt:semaSummary(), m3d:m3dSummary(), card:(VB.sel&&COMPS[VB.sel])?COMPS[VB.sel].n+": "+COMPS[VB.sel].st(vSt(VB.sys)):""});
       }catch(e){}
       updateLinkUI();
     }, 250);
@@ -1846,7 +1909,52 @@ function startRemote(){
   document.querySelectorAll("#remote [data-view]").forEach(b=>b.addEventListener("click",()=>act("view",{k:b.dataset.view})));
   $("rProj").addEventListener("click",()=>act("proj",{v:!(R.st&&R.st.proj)}));
   $("rAp").addEventListener("click",()=>act("ap",{v:!(R.st&&R.st.ap)}));
-  $("rAp2").addEventListener("click",()=>{ act("ap",{v:!(R.st&&R.st.ap)}); act("view",{k:"sema"}); });
+
+  const m3 = c => act("m3d",{c});
+  const M3 = () => (R.st && R.st.m3d) || null;
+  $("rM3dModels").innerHTML = M3D_LIST.map(([id,n])=>`<button class="btn" data-m="${id}">${n}</button>`).join("");
+  $("rM3dModels").querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{ act("view",{k:"m3d"}); m3({cmd:"load", id:b.dataset.m}); }));
+  $("rZin").addEventListener("click",()=>m3({cmd:"zoom", f:.8}));
+  $("rZout").addEventListener("click",()=>m3({cmd:"zoom", f:1.25}));
+  $("rM3dReset").addEventListener("click",()=>m3({cmd:"reset"}));
+  [["rM3dCut","cut"],["rM3dLab","labels"],["rM3dPlay","play"]].forEach(([id,k])=>$(id).addEventListener("click",()=>{ const u=M3()&&M3().ui; m3({cmd:"toggle", k, v: !(u && u[k])}); }));
+  $("rM3dSheet").addEventListener("click",()=>{ const u=M3()&&M3().ui; m3({cmd:"sheet", v: ((u? u.sheet:1)+1)%3}); });
+  let exT=0; $("rExpl3d").addEventListener("input",e=>{ $("rExpl3dV").textContent=e.target.value+" %"; const n=performance.now(); if(n-exT>90){ exT=n; m3({cmd:"explode", v:e.target.value/100}); } });
+  $("rExpl3d").addEventListener("change",e=>m3({cmd:"explode", v:e.target.value/100}));
+  // orbit pad: accumulate drag and send ~12 times per second
+  const op=$("rOrbit"); let od=null, acc=[0,0], oT=0;
+  op.addEventListener("pointerdown",e=>{ od=[e.clientX,e.clientY]; op.setPointerCapture(e.pointerId); });
+  op.addEventListener("pointermove",e=>{ if(!od) return; acc[0]+=e.clientX-od[0]; acc[1]+=e.clientY-od[1]; od=[e.clientX,e.clientY];
+    const n=performance.now(); if(n-oT>80 && (acc[0]||acc[1])){ oT=n; m3({cmd:"orbit", dx:acc[0]*.012, dy:acc[1]*.012}); acc=[0,0]; } });
+  const oEnd=()=>{ if(od && (acc[0]||acc[1])) m3({cmd:"orbit", dx:acc[0]*.012, dy:acc[1]*.012}); od=null; acc=[0,0]; };
+  op.addEventListener("pointerup",oEnd); op.addEventListener("pointercancel",oEnd);
+  let m3Cur=null, m3PartsKey="";
+  R.renderM3d = st=>{
+    const m=st.m3d;
+    $("rM3dModels").querySelectorAll("button").forEach(b=>b.classList.toggle("on", !!m && b.dataset.m===m.cur));
+    if(!m){ $("rM3dStatus").textContent="Toca un modelo para cargarlo en la pantalla."; return; }
+    const u=m.ui||{};
+    $("rM3dCut").textContent="Corte: "+(u.cut?"ON":"OFF"); $("rM3dCut").classList.toggle("on",!!u.cut);
+    $("rM3dLab").textContent="Etiquetas: "+(u.labels?"ON":"OFF"); $("rM3dLab").classList.toggle("on",!!u.labels);
+    $("rM3dPlay").textContent="Animación: "+(u.play?"ON":"OFF"); $("rM3dPlay").classList.toggle("on",!!u.play);
+    $("rM3dSheet").textContent="Lámina: "+(["oculta","al lado","grande"][u.sheet]||"—"); $("rM3dSheet").style.display = u.sheets? "" : "none";
+    if(document.activeElement!==$("rExpl3d")){ const ev=Math.round((u.explode||0)*100); $("rExpl3d").value=ev; $("rExpl3dV").textContent=ev+" %"; }
+    $("rM3dStatus").textContent = (m.title? m.title+" · " : "") + (typeof m.status==="string"? m.status : "");
+    if(m.cur!==m3Cur){
+      m3Cur=m.cur;
+      const ps=Array.isArray(m.params)? m.params : [];
+      $("rM3dParams").innerHTML = ps.map(p=>`<div class="field"><label for="rp3-${p.id}">${String(p.label).slice(0,60)} <b id="rp3v-${p.id}"></b></label><input type="range" id="rp3-${p.id}" min="${+p.min}" max="${+p.max}" step="${+p.step||1}" value="${+p.value}"></div>`).join("");
+      ps.forEach(p=>{ const inp=$("rp3-"+p.id); let t=0;
+        inp.addEventListener("input",()=>{ const n=performance.now(); if(n-t>90){ t=n; m3({cmd:"param", id:p.id, v:+inp.value}); } });
+        inp.addEventListener("change",()=>m3({cmd:"param", id:p.id, v:+inp.value})); });
+    }
+    (Array.isArray(m.params)? m.params : []).forEach(p=>{ const inp=$("rp3-"+p.id), out=$("rp3v-"+p.id); if(!inp) return; if(document.activeElement!==inp) inp.value=+p.value; out.textContent=String(p.text).slice(0,30); });
+    const parts=Array.isArray(m.parts)? m.parts : []; const key=m.cur+":"+parts.map(x=>x.k).join("|");
+    if(key!==m3PartsKey){ m3PartsKey=key;
+      $("rM3dParts").innerHTML = parts.map((x,i)=>`<button class="btn" data-k="${i}">${String(x.text).slice(0,40)}</button>`).join("");
+      $("rM3dParts").querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{ const x=parts[+b.dataset.k]; if(x) m3({cmd:"select", k:String(x.k)}); })); }
+    $("rM3dParts").querySelectorAll("button").forEach(b=>{ const x=parts[+b.dataset.k]; b.classList.toggle("on", !!x && x.k===m.sel); });
+  };  $("rAp2").addEventListener("click",()=>{ act("ap",{v:!(R.st&&R.st.ap)}); act("view",{k:"sema"}); });
   $("rSema1").addEventListener("click",()=>{ act("fail",{k:"sema1", v:!(R.st&&R.st.sema1f)}); act("view",{k:"sema"}); });
   let turbT=0;
   $("rTurb").addEventListener("input",e=>{ const now=performance.now(); if(now-turbT>80){ turbT=now; act("turb",{v:e.target.value/100}); } });
@@ -1900,6 +2008,7 @@ function startRemote(){
     $("rSema1").textContent = "SEMA 1: "+(st.sema1f?"FALLADO":"normal"); $("rSema1").classList.toggle("on",!!st.sema1f);
     if(typeof st.turb==="number"){ if(document.activeElement!==$("rTurb")) $("rTurb").value=Math.round(st.turb*100); $("rTurbV").textContent = st.turb<.05?"calma": st.turb<.7?"suave": st.turb<1.4?"media":"fuerte"; }
     $("rSemaTxt").textContent = typeof st.semaTxt==="string" ? st.semaTxt.slice(0,200) : "";
+    if(R.renderM3d) R.renderM3d(st);
     $("rTour").textContent = "Seguir la gota: "+(st.tour?"ON":"OFF"); $("rTour").classList.toggle("on",!!st.tour);
     document.querySelectorAll("#rVbSys button").forEach(b=>b.classList.toggle("on",+b.dataset.i===st.vbSys));
     document.querySelectorAll("#rPumpSel button").forEach(b=>b.classList.toggle("on",+b.dataset.i===st.pump));
